@@ -1,13 +1,23 @@
-.DS_Store
-.env
+# Environment Variables
+*.env
+.env.local
+
+# OS Files
+*.DS_Store
+**/.DS_Store
+
+# Python
 *.pyc
-__pycache__/
-.pytest_cache/
-.coverage
-.gocache/
+*__pycache__
+*.pytest_cache/
+*.coverage
+*.gocache/
+
+# Apps
 apps/orca-ai/.venv/
 apps/orca-web/node_modules/
 apps/orca-web/.next/
+data/raw/olist/*
 data/processed/*
 !data/raw/.gitkeep
 !data/raw/olist/.gitkeep

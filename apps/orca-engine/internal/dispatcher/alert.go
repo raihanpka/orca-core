@@ -8,20 +8,33 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"orca/engine/pkg/models"
 )
 
-func DispatchAlert(ctx context.Context, aiServiceURL, shipmentID, alertType string, riskScore float64, intervention, recipientPhone string) error {
-	body, _ := json.Marshal(map[string]any{
-		"shipment_id": shipmentID, "alert_type": alertType, "sla_risk_score": riskScore,
-		"intervention": intervention, "recipient_phone": recipientPhone,
-	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(aiServiceURL, "/")+"/alerts/dispatch", bytes.NewReader(body))
+type AlertDispatcher struct {
+	aiServiceURL string
+	client       *http.Client
+}
+
+func NewAlertDispatcher(aiServiceURL string) *AlertDispatcher {
+	return &AlertDispatcher{
+		aiServiceURL: strings.TrimRight(aiServiceURL, "/"),
+		client:       &http.Client{Timeout: 10 * time.Second},
+	}
+}
+
+func (d *AlertDispatcher) Dispatch(ctx context.Context, payload models.AlertDispatchRequest) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.aiServiceURL+"/alerts/dispatch", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := d.client.Do(req)
 	if err != nil {
 		return err
 	}

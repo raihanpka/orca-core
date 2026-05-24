@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -48,13 +50,18 @@ func (c *AIClient) Predict(ctx context.Context, req models.PredictRequest) (*mod
 		if err == nil && resp.StatusCode < 500 {
 			defer resp.Body.Close()
 			if resp.StatusCode >= 400 {
+				body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 				cancel()
-				return nil, fmt.Errorf("orca-ai returned status %d", resp.StatusCode)
+				return nil, fmt.Errorf("orca-ai returned status %d: %s", resp.StatusCode, string(body))
 			}
 			var out envelope
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 				cancel()
 				return nil, err
+			}
+			if !out.Success {
+				cancel()
+				return nil, fmt.Errorf("orca-ai returned unsuccessful envelope: %s", out.Error)
 			}
 			cancel()
 			return &out.Data, nil
@@ -64,6 +71,10 @@ func (c *AIClient) Predict(ctx context.Context, req models.PredictRequest) (*mod
 		}
 		cancel()
 		lastErr = err
+		if resp != nil {
+			lastErr = fmt.Errorf("orca-ai returned status %d", resp.StatusCode)
+		}
+		log.Printf(`{"service":"orca-engine","level":"WARN","action":"predict_retry","attempt":%d,"error":%q}`, attempt+1, lastErr)
 		time.Sleep(time.Duration(100*(1<<attempt)) * time.Millisecond)
 	}
 	return nil, lastErr
