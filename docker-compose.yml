@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_USER: orca
+      POSTGRES_PASSWORD: orca_pass
+      POSTGRES_DB: orca_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/init-db:/docker-entrypoint-initdb.d
+    networks: [orca-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    networks: [orca-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    command: mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri /mlruns
+    ports: ["5001:5001"]
+    volumes: ["./mlruns:/mlruns"]
+    networks: [orca-net]
+
+  orca-ai:
+    build: ./apps/orca-ai
+    ports: ["8000:8000"]
+    env_file: ./apps/orca-ai/.env
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      mlflow: {condition: service_started}
+    networks: [orca-net]
+
+  orca-engine:
+    build: ./apps/orca-engine
+    ports: ["9090:9090"]
+    env_file: ./apps/orca-engine/.env
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      orca-ai: {condition: service_started}
+    networks: [orca-net]
+
+  orca-web:
+    build: ./apps/orca-web
+    ports: ["3000:3000"]
+    env_file: ./apps/orca-web/.env.local
+    depends_on:
+      orca-ai: {condition: service_started}
+      orca-engine: {condition: service_started}
+    networks: [orca-net]
+
+volumes:
+  postgres_data:
+
+networks:
+  orca-net:
+    driver: bridge

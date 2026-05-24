@@ -1,0 +1,45 @@
+[project]
+name = "orca-ai"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.111.*",
+  "uvicorn[standard]",
+  "pydantic-settings",
+  "lightgbm>=4",
+  "pymoo>=0.6",
+  "scikit-learn>=1.5",
+  "mlflow>=2",
+  "asyncpg",
+  "redis[asyncio]>=5",
+  "httpx",
+  "pandas>=2",
+  "pyarrow>=15",
+  "numpy<2",
+  "optuna>=3",
+  "shap>=0.45",
+  "osmnx>=1.9",
+  "python-dotenv",
+  "kaggle",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "pytest-cov", "ruff"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "core*", "db*", "ml*", "services*", "training*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100

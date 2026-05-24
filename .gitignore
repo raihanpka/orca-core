@@ -1,0 +1,17 @@
+.DS_Store
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+.gocache/
+apps/orca-ai/.venv/
+apps/orca-web/node_modules/
+apps/orca-web/.next/
+data/processed/*
+!data/raw/.gitkeep
+!data/raw/olist/.gitkeep
+!data/raw/olist/README.md
+!data/processed/.gitkeep
+mlruns/*
+!mlruns/.gitkeep
