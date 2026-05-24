@@ -12,6 +12,10 @@ type ShipmentEvent struct {
 	HubZone                string    `json:"hub_zone"`
 	OriginHubID            string    `json:"origin_hub_id"`
 	DestinationZone        string    `json:"destination_zone"`
+	VehicleType            string    `json:"vehicle_type"`
+	LoadWeightKG           float64   `json:"load_weight_kg"`
+	CustomerLat            float64   `json:"customer_lat"`
+	CustomerLng            float64   `json:"customer_lng"`
 	WeatherSeverityScore   float64   `json:"weather_severity_score"`
 	HistoricalHubDelayRate float64   `json:"historical_hub_delay_rate"`
 	HistoricalDriverRate   float64   `json:"historical_driver_rate"`
@@ -57,7 +61,7 @@ type WSMessage struct {
 type AlertDispatchRequest struct {
 	ShipmentID     string  `json:"shipment_id"`
 	AlertType      string  `json:"alert_type"`
-	SLARiskScore   float64 `json:"sla_risk_score"`
+	SLARiskScore   float64  `json:"sla_risk_score"`
 	Intervention   string  `json:"intervention"`
 	RecipientPhone string  `json:"recipient_phone,omitempty"`
 }

@@ -53,7 +53,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
 - [ ] Initialize folder structure as defined in `AGENTS.md` under Folder Architecture
 - [ ] Create `docker-compose.yml` at the **repo root** with the following services:
 
-  **Infrastructure services** (no `ports:` mappings — internal only):
+  **Infrastructure services** (no `ports:` mappings - internal only):
   - `postgres`: image `timescale/timescaledb:latest-pg15`, volumes for persistence and
     `./infra/init-db:/docker-entrypoint-initdb.d` mount for schema auto-init
   - `redis`: image `redis:7-alpine`
@@ -73,7 +73,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
   The compose file must use Docker Compose v2 format (no `version:` key at the top).
 
   ```yaml
-  # docker-compose.yml (v2 format — no version key)
+  # docker-compose.yml (v2 format - no version key)
   services:
     postgres:
       image: timescale/timescaledb:latest-pg15
@@ -85,7 +85,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
         - postgres_data:/var/lib/postgresql/data
         - ./infra/init-db:/docker-entrypoint-initdb.d
       networks: [orca-net]
-      # No ports: — not accessible from host, only within Docker network
+      # No ports: - not accessible from host, only within Docker network
       healthcheck:
         test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
         interval: 10s
@@ -95,7 +95,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
     redis:
       image: redis:7-alpine
       networks: [orca-net]
-      # No ports: — not accessible from host, only within Docker network
+      # No ports: - not accessible from host, only within Docker network
       healthcheck:
         test: ["CMD", "redis-cli", "ping"]
         interval: 10s
@@ -112,7 +112,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
     orca-ai:
       build: ./apps/orca-ai
       ports: ["8000:8000"]
-      env_file: ./apps/orca-ai/.env
+      env_file: ./.env
       depends_on:
         postgres: {condition: service_healthy}
         redis: {condition: service_healthy}
@@ -122,7 +122,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
     orca-engine:
       build: ./apps/orca-engine
       ports: ["9090:9090"]
-      env_file: ./apps/orca-engine/.env
+      env_file: ./.env
       depends_on:
         postgres: {condition: service_healthy}
         redis: {condition: service_healthy}
@@ -132,7 +132,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
     orca-web:
       build: ./apps/orca-web
       ports: ["3000:3000"]
-      env_file: ./apps/orca-web/.env.local
+      env_file: ./.env
       depends_on:
         orca-ai: {condition: service_started}
         orca-engine: {condition: service_started}
@@ -160,7 +160,8 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
 
   > Do NOT add `grpcio` or `grpcio-tools`. This project uses REST only.
 
-- [ ] Create `apps/orca-ai/.env.example` with all variables from `AGENTS.md` Environment Configuration
+- [x] Document all service variables in the repo-root `.env.example`; do not create per-service env examples
+- [x] Add `PUBLIC_API_TOKEN`, `NEXT_PUBLIC_API_TOKEN`, `PUBLIC_RATE_LIMIT_PER_MINUTE`, `INTERNAL_API_TOKEN`, and `WS_ALLOWED_ORIGINS`
 - [ ] Create `apps/orca-ai/core/config.py` as Pydantic `BaseSettings` loading all env vars
 - [ ] Create `apps/orca-ai/main.py` with FastAPI app skeleton:
   - `lifespan` context manager with placeholder log lines for model loading and DB pool setup
@@ -174,12 +175,13 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
 
 ### 1.3 orca-engine Go Project Initialization
 
-- [ ] Create `apps/orca-engine/go.mod` with module path `orca/engine` and Go `>= 1.22`
+- [x] Create `apps/orca-engine/go.mod` with module path `orca/engine` and Go `>= 1.23`
 - [ ] Add Go dependencies:
   - `github.com/go-redis/redis/v9`
   - `github.com/jackc/pgx/v5`
   - `github.com/google/uuid`
   - `github.com/gorilla/websocket`
+  - `github.com/gin-gonic/gin`
 
   > Do NOT add `google.golang.org/grpc`. All calls to orca-ai use standard REST API.
 
@@ -189,7 +191,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
   - Prints `"[orca-engine] Redis connected"` and `"[orca-engine] PostgreSQL connected"`
   - Starts an HTTP server on `:WS_PORT` with a placeholder `GET /health` handler
 - [ ] Create `apps/orca-engine/Dockerfile`:
-  - Multi-stage: `golang:1.22-alpine` builder → `alpine:latest` runner
+  - Multi-stage: `golang:1.23-alpine` builder → `alpine:latest` runner
   - `COPY go.mod go.sum ./` then `RUN go mod download`
   - `EXPOSE 9090`
 - [ ] Verify `make dev-engine` starts the Go binary and logs successful connections
@@ -198,7 +200,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
 
 - [ ] Scaffold with `pnpm create next-app apps/orca-web --typescript --tailwind --app --no-src-dir --import-alias "@/*"`
 - [ ] Install dependencies with `pnpm add zustand swr recharts` and initialize shadcn/ui with `pnpm dlx shadcn@latest init` when the full UI phase begins
-- [ ] Create `apps/orca-web/.env.local.example` with:
+- [x] Document frontend variables in the repo-root `.env.example`:
   ```
   NEXT_PUBLIC_API_BASE=http://localhost:8000
   NEXT_PUBLIC_WS_BASE=ws://localhost:9090
@@ -289,8 +291,8 @@ returns CO2 data, `POST /internal/predict` returns a valid prediction JSON.
   - Starts an MLflow run under experiment `orca-delay-prediction`
   - Logs tags `dataset_version=olist-v1`, `feature_version=v1`
   - Runs Optuna 50-trial hyperparameter search (5-fold stratified CV, optimizing F1):
-    - `num_leaves`: 20–150, `learning_rate`: 0.01–0.3, `n_estimators`: 100–1000,
-      `max_depth`: 3–12, `min_child_samples`: 10–100
+    - `num_leaves`: 20-150, `learning_rate`: 0.01-0.3, `n_estimators`: 100-1000,
+      `max_depth`: 3-12, `min_child_samples`: 10-100
   - Trains final LightGBM with best params on full training set
   - Wraps with `CalibratedClassifierCV(method='sigmoid', cv=5)`
   - Logs model with `mlflow.sklearn.log_model`, registers as `delay-predictor` in `Staging`
@@ -338,12 +340,13 @@ through which orca-engine requests predictions from orca-ai.
 
 - [ ] Write `apps/orca-ai/db/connection.py`: `asyncpg.create_pool` from `settings.DATABASE_URL`
 - [ ] Write `apps/orca-ai/db/queries.py` with named async query functions:
-  - `get_active_shipments(pool, limit, cursor, hub_id, min_risk)` — cursor-based
+  - `get_active_shipments(pool, limit, cursor, hub_id, min_risk)` - cursor-based
   - `get_latest_prediction(pool, shipment_id)`
   - `upsert_prediction_cache(pool, shipment_id, prediction_dict)`
 - [ ] Write `apps/orca-ai/api/routers/shipments.py`:
   - `GET /shipments/active`: joins `shipments` with latest `shipment_predictions` per shipment,
     returns paginated list (cursor on `shipment.id`), runs prediction if no cached prediction in Redis
+    and performs fallback prediction/carbon writes in batch when cache is missing
   - `GET /shipments/{shipment_id}/prediction`: returns detailed prediction with SHAP values
     computed via `shap.TreeExplainer` (top 5 features by absolute contribution)
 - [ ] Wire all routers into `main.py`; verify `GET /docs` shows all endpoints
@@ -351,10 +354,10 @@ through which orca-engine requests predictions from orca-ai.
 ### 2.5 Carbon Calculator
 
 - [ ] Write `apps/orca-ai/ml/carbon_calc.py`:
-  - `load_emission_factors(db_pool) -> dict` — loads from `glec_emission_factors` table
+  - `load_emission_factors(db_pool) -> dict` - loads from `glec_emission_factors` table
   - `compute_co2(distance_km, load_weight_kg, vehicle_type, emission_factors) -> float`
     using the GLEC formula from `AGENTS.md`
-  - `write_carbon_record(db_pool, ...)` — appends to `carbon_records` (skip if exists)
+  - `write_carbon_record(db_pool, ...)` - appends to `carbon_records` (skip if exists)
 - [ ] Write `apps/orca-ai/api/routers/carbon.py`:
   - `GET /analytics/carbon`: aggregates `SUM(co2_kg)` by day and vehicle type,
     computes `vs_baseline_pct`, returns `glec_version: "3.0"`
@@ -366,7 +369,7 @@ through which orca-engine requests predictions from orca-ai.
   - Calls HERE Maps REST API on cache miss
   - Fallback `{ distance_km: 30.0, travel_time_min: 60.0 }` with WARN log on any failure
 - [ ] Write `apps/orca-ai/services/bmkg.py` with async class `BMKGClient`:
-  - Maps BMKG precipitation descriptions to severity 0–3
+  - Maps BMKG precipitation descriptions to severity 0-3
   - Redis cache TTL 3h, fallback `0.0` on failure
 
 ### 2.7 NSGA-II Route Optimizer
@@ -392,6 +395,8 @@ through which orca-engine requests predictions from orca-ai.
     within 2 hours), call `FonnteClient.send_alert` on new alert, insert to `alert_logs`
   - `GET /alerts/recent`: returns last 10 rows from `alert_logs` joined with `shipments.external_id`
 - [ ] Add global exception handler in `main.py` returning `{"success": false, "error": "message"}`
+- [x] Add public API token middleware and simple in-memory rate limiting for public REST endpoints
+- [x] Keep CORS permissive for frontend development while requiring API token headers
 - [ ] Verify `GET /docs` shows all endpoints with correct schemas
 
 ### Day 2 Test Gate
@@ -410,7 +415,7 @@ through which orca-engine requests predictions from orca-ai.
 
 ## Day 3: Go Engine, Alert System, API Completion
 
-**Objective**: Implement the complete orca-engine — Redis subscriber, REST client to orca-ai,
+**Objective**: Implement the complete orca-engine - Redis subscriber, REST client to orca-ai,
 in-memory state machine, WebSocket hub, PostgreSQL writes, and alert threshold evaluation.
 Verify the full prediction pipeline from Redis event to database.
 
@@ -422,17 +427,17 @@ triggered for high-risk shipments automatically.
 
 ### 3.1 Shared Go Models
 
-- [ ] Write `apps/orca-engine/pkg/models/shipment.go` with Go structs:
-  - `ShipmentEvent` — JSON-deserialized from Redis `orca:events:shipments` channel
-  - `PredictRequest` — matches `POST /internal/predict` request body
-  - `PredictResponse` — matches `POST /internal/predict` response data
-  - `WSMessage` — `{ Type, ShipmentID, SLARiskScore, DelayProbability, ExternalID, Intervention }`
+- [x] Write `apps/orca-engine/pkg/models/shipment.go` with Go structs:
+  - `ShipmentEvent` - JSON-deserialized from Redis `orca:events:shipments` channel
+  - `PredictRequest` - matches `POST /internal/predict` request body
+  - `PredictResponse` - matches `POST /internal/predict` response data
+  - `WSMessage` - `{ Type, ShipmentID, SLARiskScore, DelayProbability, ExternalID, Intervention }`
 
 ### 3.2 HTTP Client to orca-ai
 
 This replaces gRPC. All prediction requests from orca-engine go through standard HTTP.
 
-- [ ] Write `apps/orca-engine/internal/ai_client/http_client.go`:
+- [x] Write `apps/orca-engine/internal/ai_client/http_client.go`:
   - `NewAIClient(baseURL string) *AIClient` constructor (reads `AI_SERVICE_URL` env var)
   - `Predict(ctx context.Context, req PredictRequest) (*PredictResponse, error)`:
     - Marshals `req` to JSON, POSTs to `{AI_SERVICE_URL}/internal/predict`
@@ -443,7 +448,7 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
 
 ### 3.3 Redis Subscriber and Prediction Loop
 
-- [ ] Write `apps/orca-engine/internal/subscriber/redis_sub.go`:
+- [x] Write `apps/orca-engine/internal/subscriber/redis_sub.go`:
   - `Subscribe(ctx, redisClient, aiClient, store, db, wsHub)` goroutine that:
     1. Subscribes to `orca:events:shipments`
     2. On each message: deserializes `ShipmentEvent` JSON
@@ -457,23 +462,23 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
 
 ### 3.4 In-Memory Shipment Store
 
-- [ ] Write `apps/orca-engine/internal/state/shipment_store.go`:
+- [x] Write `apps/orca-engine/internal/state/shipment_store.go`:
   - `ShipmentStore` struct with `sync.RWMutex` and `map[string]ShipmentState`
   - `Set(id string, state ShipmentState)`, `Get(id string)`, `Delete(id string)`, `All() []ShipmentState`
   - `ShipmentState` embeds `ShipmentEvent` plus `LastRiskScore`, `LastPredictedAt`
 
 ### 3.5 PostgreSQL Write Helpers
 
-- [ ] Write `apps/orca-engine/internal/db/postgres.go`:
+- [x] Write `apps/orca-engine/internal/db/postgres.go`:
   - `NewPool(ctx, databaseURL) (*pgxpool.Pool, error)`
   - `InsertPrediction(ctx, pool, shipmentID, delayProb, riskScore, predictedDelayHrs, modelVersion) error`
-    — inserts into `shipment_predictions` hypertable with `time = NOW()`
+    - inserts into `shipment_predictions` hypertable with `time = NOW()`
   - `InsertAlertLog(ctx, pool, shipmentID, alertType, riskScore, intervention) error`
   - `InsertHubMetric(ctx, pool, hubID, inboundVolume, avgDwellMin, delayRate) error`
 
 ### 3.6 WebSocket Hub
 
-- [ ] Write `apps/orca-engine/internal/ws/hub.go`:
+- [x] Write `apps/orca-engine/internal/ws/hub.go`:
   - `Hub` struct managing a set of connected WebSocket clients (using `gorilla/websocket`)
   - `Register(conn)`, `Unregister(conn)`, `Broadcast(msg WSMessage)` methods
   - `Run()` goroutine that processes register, unregister, and broadcast channels
@@ -481,16 +486,16 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
     (client-to-server messages are ignored for MVP)
   - On broadcast: marshal `WSMessage` to JSON, send to all registered clients;
     on send error, unregister the client
-- [ ] Update `apps/orca-engine/main.go`:
+- [x] Update `apps/orca-engine/main.go`:
   - Start `Hub.Run()` goroutine
   - Register `GET /ws` handler for WebSocket upgrades
-  - Register `GET /health` handler returning `{"status": "ok"}`
+  - Register `GET /health` handler returning `{"status": "ok"}` via Gin
   - Start all subscriber goroutines
-  - Block with `http.ListenAndServe(":9090", nil)`
+  - Block with Gin `router.Run(":9090")`
 
 ### 3.7 Alert Dispatcher
 
-- [ ] Write `apps/orca-engine/internal/dispatcher/alert.go`:
+- [x] Write `apps/orca-engine/internal/dispatcher/alert.go`:
   - `DispatchAlert(ctx, aiClient, shipmentID, externalID, riskScore, intervention) error`:
     - POSTs to `{AI_SERVICE_URL}/alerts/dispatch` with the alert payload
     - On success: broadcasts WebSocket `alert` event via `wsHub.Broadcast`
@@ -500,12 +505,13 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
 
 ### 3.8 Hub Metric Publisher
 
-- [ ] Write a goroutine in `main.go` that runs every 60 seconds:
+- [x] Write a goroutine in `main.go` that runs every 60 seconds:
   - Reads all shipments from `ShipmentStore`
   - Groups by `origin_hub_id`, counts active shipments per hub
   - Estimates `avg_dwell_time_min` from `(NOW - dispatched_at).Minutes()` per shipment
   - Calls `db.InsertHubMetric` for each hub
   - This feeds the `GET /analytics/hubs` endpoint with fresh time-series data
+- [x] Use development-only permissive WebSocket origin checks; non-development uses `WS_ALLOWED_ORIGINS`
 
 ### 3.9 Integration Smoke Test
 
@@ -541,8 +547,8 @@ package is complete.
 ### 4.1 Zustand Store and Data Fetching Foundation
 
 - [ ] Write `apps/orca-web/store/dashboard.ts` with Zustand store:
-  - `shipments: Shipment[]` — active shipments list
-  - `alerts: Alert[]` — recent alert queue for AlertBanner
+  - `shipments: Shipment[]` - active shipments list
+  - `alerts: Alert[]` - recent alert queue for AlertBanner
   - `actions.setShipments(shipments)`, `actions.updateShipment(id, patch)`,
     `actions.pushAlert(alert)`, `actions.dismissAlert(id)`
 - [ ] Write `apps/orca-web/hooks/useShipments.ts`:
@@ -562,7 +568,7 @@ package is complete.
 - [ ] Write `apps/orca-web/components/ShipmentTable.tsx`:
   - Table columns: `external_id`, `origin_hub_id`, `destination_zone`, `vehicle_type`,
     `sla_deadline` (formatted as local time), `sla_risk_score` (colored badge), `delay_probability` (%), `status`
-  - Risk badge: green (0–39), yellow (40–69), red (70–100)
+  - Risk badge: green (0-39), yellow (40-69), red (70-100)
   - Pagination: 20 rows per page with next/previous buttons using cursor from API
   - Click row → modal with `GET /shipments/{id}/prediction` SHAP breakdown
 - [ ] Write `apps/orca-web/app/page.tsx`:
@@ -573,7 +579,7 @@ package is complete.
 ### 4.3 Route Optimization Page
 
 - [ ] Write `apps/orca-web/components/ParetoChart.tsx`:
-  - Recharts `ScatterChart` — X: CO2 kg, Y: travel time minutes
+  - Recharts `ScatterChart` - X: CO2 kg, Y: travel time minutes
   - Each point is one Pareto solution; tooltip shows all 4 objectives
   - Fastest point in blue, lowest-emission in green
   - Click point → sidebar with stop order for that solution
@@ -616,14 +622,14 @@ package is complete.
 
 ### 4.7 Demo Scenario Scripts
 
-**Scenario 1** — Normal Operations:
+**Scenario 1** - Normal Operations:
 - [ ] Write `scripts/simulate/demo_scenario_1.py`:
   - Seeds 50 low-risk shipments (`sla_risk_score < 40`, `weather_severity_score = 0.0`,
     `historical_hub_delay_rate = 0.05`)
   - Replays them over 60 seconds
   - Expected: dashboard shows all green rows, carbon analytics shows consistent daily CO2
 
-**Scenario 2** — SLA Risk Escalation:
+**Scenario 2** - SLA Risk Escalation:
 - [ ] Write `scripts/simulate/demo_scenario_2.py`:
   - Seeds 20 normal shipments, replays for 30 seconds
   - Then injects 5 high-risk shipments: `sla_deadline = NOW + 2h`,
@@ -631,7 +637,7 @@ package is complete.
   - Expected: risk scores jump to red (70+), `AlertBanner` shows, WhatsApp delivered,
     dispatcher can click a row → SHAP breakdown → navigate to optimize → Pareto front returned
 
-**Scenario 3** — Hub Congestion:
+**Scenario 3** - Hub Congestion:
 - [ ] Write `scripts/simulate/demo_scenario_3.py`:
   - Seeds hub metrics for `hub_jkt_barat` with `avg_dwell_time_min = 75.0`, `delay_rate = 0.35`
   - Expected: hubs page shows `hub_jkt_barat` with red border and alert flag,
@@ -658,7 +664,7 @@ package is complete.
   plus `POST /internal/predict`
 - [ ] Write `.docs/datasets.md` listing Olist (CC BY-NC-SA 4.0), HERE Maps (free tier),
   BMKG (public domain), GLEC (cited)
-- [ ] Record a 3–5 minute screen recording of Demo Scenario 2 (simulation start → alert delivery)
+- [ ] Record a 3-5 minute screen recording of Demo Scenario 2 (simulation start → alert delivery)
 - [ ] Verify with `git grep -rn "api_key\|API_KEY\|fonnte\|FONNTE" -- "*.py" "*.go" "*.tsx"`:
   no hardcoded secrets in any source file
 

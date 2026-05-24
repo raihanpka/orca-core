@@ -33,7 +33,7 @@ document before making any modifications in this repository.
 |---|---|
 | **Name** | ORCA (Optimized Routing & Carbon Analytics) |
 | **Description** | AI-powered logistics intelligence platform for Blibli: delivery delay prediction, multi-objective carbon-aware route optimization, real-time SLA risk scoring, and hub congestion analytics |
-| **Architecture Style** | Microservices Monorepo — three service layers communicating via REST HTTP; real-time push via WebSocket |
+| **Architecture Style** | Microservices Monorepo - three service layers communicating via REST HTTP; real-time push via WebSocket |
 | **Primary Interface** | REST APIs (orca-ai + orca-engine internal), WebSocket (orca-engine to orca-web), Next.js dashboard (orca-web) |
 | **Target Users** | Blibli logistics operations managers, fleet dispatchers, sustainability officers |
 | **Target Scale** | Prototype: 10,000 to 50,000 simulated shipments per demo run |
@@ -45,7 +45,7 @@ document before making any modifications in this repository.
 
 ORCA is composed of three application services and three infrastructure services, all
 running in a single Docker Compose v2 stack. Infrastructure services (PostgreSQL and Redis)
-are network-isolated — they are not reachable from the host machine, only from other
+are network-isolated - they are not reachable from the host machine, only from other
 Docker services within the `orca-net` bridge network.
 
 ```
@@ -63,11 +63,11 @@ orca-engine (Go :9090)           <-- Real-time shipment state machine, streaming
         |
         | Redis Pub/Sub (internal only, no host port exposure)
         v
-Redis (:6379) — internal only    <-- Prediction cache, SLA score cache, pub/sub broker
+Redis (:6379) - internal only    <-- Prediction cache, SLA score cache, pub/sub broker
         |
         v
 PostgreSQL + TimescaleDB (:5432) <-- Shipment records, predictions, carbon records,
-— internal only                      route optimizations, hub metrics, alert logs
+- internal only                      route optimizations, hub metrics, alert logs
         |
         v
 MLflow Tracking Server (:5001)   <-- Experiment tracking, model registry, artifact storage
@@ -97,7 +97,7 @@ Simulation script (Python)
 
 ```yaml
 # All services share orca-net (bridge)
-# Redis and PostgreSQL have NO host port mappings — internal only
+# Redis and PostgreSQL have NO host port mappings - internal only
 # MLflow, orca-ai, orca-engine, orca-web expose ports to host for development
 
 networks:
@@ -105,8 +105,8 @@ networks:
     driver: bridge
 
 services:
-  postgres:  # No ports: key — host cannot reach 5432 directly
-  redis:     # No ports: key — host cannot reach 6379 directly
+  postgres:  # No ports: key - host cannot reach 5432 directly
+  redis:     # No ports: key - host cannot reach 6379 directly
   orca-ai:   # ports: ["8000:8000"]
   orca-engine: # ports: ["9090:9090"]
   orca-web:  # ports: ["3000:3000"]
@@ -147,12 +147,12 @@ services:
 
 | Technology | Version | Purpose |
 |---|---|---|
-| Go | >= 1.22 | Runtime |
+| Go | >= 1.23 | Runtime |
 | go-redis/redis | v9 | Redis client, pub/sub subscription |
 | jackc/pgx | v5 | PostgreSQL async driver |
 | google/uuid | latest | UUID generation for shipment IDs |
 | gorilla/websocket | latest | WebSocket server for dashboard real-time push |
-| gin | 1.11.0 | HTTP client for REST calls to orca-ai (no gRPC) |
+| gin | 1.11.0 | HTTP server/router for orca-engine health and WebSocket endpoints |
 
 > **No gRPC dependencies.** `google.golang.org/grpc` is not used. orca-engine calls
 > orca-ai via HTTP POST to `/internal/predict`.
@@ -201,7 +201,6 @@ orca/
 │   │   ├── main.py                 # FastAPI app entry point with lifespan
 │   │   ├── pyproject.toml          # Python dependencies (no grpcio)
 │   │   ├── Dockerfile
-│   │   ├── .env.example
 │   │   ├── api/
 │   │   │   ├── routers/
 │   │   │   │   ├── shipments.py    # GET /shipments/active, GET /shipments/{id}/prediction
@@ -238,7 +237,6 @@ orca/
 │   │   ├── main.go                 # HTTP + WebSocket server on :9090
 │   │   ├── go.mod                  # No google.golang.org/grpc dependency
 │   │   ├── Dockerfile
-│   │   ├── .env.example
 │   │   └── internal/
 │   │       ├── state/
 │   │       │   └── shipment_store.go  # In-memory shipment state map (sync.RWMutex)
@@ -259,22 +257,21 @@ orca/
 │       ├── tailwind.config.ts
 │       ├── tsconfig.json
 │       ├── Dockerfile
-│       ├── .env.local.example
 │       ├── app/
-│       │   ├── layout.tsx          # Root layout — includes AlertBanner, nav
-│       │   ├── page.tsx            # / — Active shipments SLA risk table
+│       │   ├── layout.tsx          # Root layout - includes AlertBanner, nav
+│       │   ├── page.tsx            # / - Active shipments SLA risk table
 │       │   ├── optimize/
-│       │   │   └── page.tsx        # /optimize — Route optimization Pareto chart
+│       │   │   └── page.tsx        # /optimize - Route optimization Pareto chart
 │       │   ├── carbon/
-│       │   │   └── page.tsx        # /carbon — Carbon footprint analytics
+│       │   │   └── page.tsx        # /carbon - Carbon footprint analytics
 │       │   └── hubs/
-│       │       └── page.tsx        # /hubs — Hub congestion heatmap
+│       │       └── page.tsx        # /hubs - Hub congestion heatmap
 │       ├── components/
 │       │   ├── ShipmentTable.tsx   # Active shipments with SLA risk score badges
 │       │   ├── ParetoChart.tsx     # Recharts scatter Pareto front visualization
 │       │   ├── CarbonCard.tsx      # CO2 summary card with GLEC footnote
 │       │   ├── HubHeatmap.tsx      # Hub status grid with congestion color coding
-│       │   └── AlertBanner.tsx     # Fixed top banner — real-time alert strip
+│       │   └── AlertBanner.tsx     # Fixed top banner - real-time alert strip
 │       ├── hooks/
 │       │   ├── useShipments.ts     # SWR polling for active shipments
 │       │   ├── useCarbon.ts        # SWR fetching for carbon analytics
@@ -763,7 +760,7 @@ def compute_sla_risk(delay_probability: float, remaining_hours: float) -> float:
 
 Alert threshold: `sla_risk_score >= 70.0` (configurable via `ALERT_RISK_THRESHOLD` env var).
 
-Urgency levels: `"low"` (0–39), `"medium"` (40–69), `"high"` (70–100).
+Urgency levels: `"low"` (0-39), `"medium"` (40-69), `"high"` (70-100).
 
 ### Carbon Calculation Formula
 
@@ -811,7 +808,7 @@ exists only as an optional convenience when Kaggle credentials are configured.
 
 **Delay label:** `is_delayed = int((delivered_date - estimated_date).total_seconds() / 3600 > 0)`
 
-**Hub zone:** first 3 digits of `seller_zip_code_prefix` → ~20–30 distinct zones.
+**Hub zone:** first 3 digits of `seller_zip_code_prefix` → ~20-30 distinct zones.
 
 ### External APIs
 
@@ -901,72 +898,56 @@ All list endpoints use `shipment.id` as the cursor. Never use offset-based pagin
 
 ## Environment Configuration
 
-### apps/orca-ai/.env
+All service environment variables are documented in the repo-root `.env.example`.
+Use one repo-root `.env` for Docker Compose and local development. Do not add
+per-service `.env.example` files under `apps/`.
 
 ```env
-# Application
 APP_ENV=development
 APP_PORT=8000
 DEBUG=true
 
-# PostgreSQL (TimescaleDB) — use service name inside Docker, localhost outside
 DATABASE_URL=postgresql://orca:orca_pass@postgres:5432/orca_db
-
-# Redis — use service name inside Docker, localhost outside
+DEV_DATABASE_URL=postgresql://orca:orca_pass@localhost:5432/orca_db
 REDIS_URL=redis://redis:6379
+DEV_REDIS_URL=redis://localhost:6379
 PREDICTION_CACHE_TTL_SECONDS=900
+INTERNAL_API_TOKEN=change_me_for_local_dev
+PUBLIC_API_TOKEN=change_me_for_public_api
+PUBLIC_RATE_LIMIT_PER_MINUTE=120
 
-# MLflow — use service name inside Docker
 MLFLOW_TRACKING_URI=http://mlflow:5001
 MLFLOW_MODEL_NAME=delay-predictor
 MLFLOW_MODEL_STAGE=Production
 
-# External APIs
-HERE_MAPS_API_KEY=your_here_maps_api_key
-BMKG_API_BASE_URL=https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast
-
-# WhatsApp alerts
-FONNTE_API_KEY=your_fonnte_api_key
-FONNTE_API_URL=https://api.fonnte.com/send
-ALERT_RECIPIENT_PHONE=628xxxxxxxxxx
-
-# ML configuration
-ALERT_RISK_THRESHOLD=70.0
-DEMO_MODE=false
-NSGA2_POPULATION_SIZE=100
-NSGA2_GENERATIONS=200
-
-# Kaggle (for data download only)
-KAGGLE_USERNAME=your_kaggle_username
-KAGGLE_KEY=your_kaggle_api_key
-```
-
-### apps/orca-engine/.env
-
-```env
-APP_ENV=development
 AI_SERVICE_URL=http://orca-ai:8000
-REDIS_URL=redis://redis:6379
-DATABASE_URL=postgresql://orca:orca_pass@postgres:5432/orca_db
 PREDICTION_INTERVAL_SECONDS=900
 ALERT_RISK_THRESHOLD=70.0
 WS_PORT=9090
-```
+WS_ALLOWED_ORIGINS=http://localhost:3000
 
-### apps/orca-web/.env.local
-
-```env
 NEXT_PUBLIC_API_BASE=http://localhost:8000
 NEXT_PUBLIC_WS_BASE=ws://localhost:9090
 NEXT_PUBLIC_POLL_INTERVAL_MS=15000
+NEXT_PUBLIC_API_TOKEN=change_me_for_public_api
+
+HERE_MAPS_API_KEY=
+BMKG_API_BASE_URL=https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast
+FONNTE_API_KEY=
+FONNTE_API_URL=https://api.fonnte.com/send
+ALERT_RECIPIENT_PHONE=
+
+DEMO_MODE=true
+NSGA2_POPULATION_SIZE=50
+NSGA2_GENERATIONS=100
+
+KAGGLE_USERNAME=
+KAGGLE_KEY=
 ```
 
-### docker-compose.yml environment notes
-
-Inside the Compose stack, services reference each other by **service name** (e.g. `postgres`,
-`redis`, `orca-ai`, `mlflow`). Local development scripts that run outside Docker
-(e.g. `make train`) use `localhost` with the published port. Environment files for both
-contexts should be documented in `.env.example` at the repo root.
+Inside the Compose stack, services reference each other by **service name**. All Compose
+services use `env_file: ./.env`. Local scripts that run outside Docker may use the
+`DEV_DATABASE_URL` and `DEV_REDIS_URL` overrides.
 
 ---
 
@@ -1039,6 +1020,9 @@ make clean          # Remove build artifacts, cached models, parquet files
 - Never add gRPC dependencies (`grpcio`, `grpcio-tools`, `google.golang.org/grpc`). This project uses REST.
 - Never use Bun for the frontend. Use `pnpm` for install, dev, and build.
 - Never use raw `pip`, `python -m venv`, or ad-hoc virtualenv commands for project workflows. Use `uv`.
+- Never add per-service `.env.example` files. Keep environment documentation centralized in root `.env.example`.
+- Public REST endpoints must require `X-API-Token` from `PUBLIC_API_TOKEN`, while internal engine endpoints must require `X-Internal-Token`.
+- Do not make WebSocket origin checks strict in development. In non-development environments, use `WS_ALLOWED_ORIGINS`.
 - Never create or reference `.proto` files. No protobuf in this codebase.
 - Never call HERE Maps or BMKG APIs synchronously. Always use `httpx.AsyncClient`.
 - Never store `delay_probability` or `sla_risk_score` in the `shipments` table.

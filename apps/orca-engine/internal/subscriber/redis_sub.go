@@ -49,8 +49,17 @@ func Subscribe(ctx context.Context, redisClient *redis.Client, ai *ai_client.AIC
 			continue
 		}
 		if pool != nil {
-			if err := orcadb.InsertPrediction(ctx, pool, event.ShipmentID, prediction.DelayProbability, prediction.SLARiskScore, prediction.PredictedDelayHours, prediction.ModelVersion); err != nil {
-				log.Printf(`{"service":"orca-engine","level":"WARN","action":"prediction_insert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
+			if err := orcadb.UpsertShipment(ctx, pool, event); err != nil {
+				log.Printf(`{"service":"orca-engine","level":"ERROR","action":"shipment_upsert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
+				continue
+			}
+			if err := orcadb.InsertCarbonRecord(ctx, pool, event); err != nil {
+				log.Printf(`{"service":"orca-engine","level":"WARN","action":"carbon_insert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
+			}
+			featuresJSON, _ := json.Marshal(buildPredictRequest(event))
+			if err := orcadb.InsertPrediction(ctx, pool, event.ShipmentID, prediction.DelayProbability, prediction.SLARiskScore, prediction.PredictedDelayHours, prediction.ModelVersion, featuresJSON); err != nil {
+				log.Printf(`{"service":"orca-engine","level":"ERROR","action":"prediction_insert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
+				continue
 			}
 		}
 		store.Set(event.ShipmentID, state.ShipmentState{ShipmentEvent: event, LastRiskScore: prediction.SLARiskScore, LastPredictedAt: time.Now().UTC()})
@@ -101,6 +110,15 @@ func normalizeEvent(event *models.ShipmentEvent) {
 	}
 	if event.OriginHubID == "" {
 		event.OriginHubID = "hub_" + event.HubZone
+	}
+	if event.VehicleType == "" {
+		event.VehicleType = "van_diesel"
+	}
+	if event.LoadWeightKG <= 0 {
+		event.LoadWeightKG = event.ProductWeightG / 1000
+	}
+	if event.LoadWeightKG <= 0 {
+		event.LoadWeightKG = 1
 	}
 	if event.HistoricalDriverRate <= 0 {
 		event.HistoricalDriverRate = 1

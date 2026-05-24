@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v9"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -42,12 +41,15 @@ func getFloat(key string, fallback float64) float64 {
 
 func main() {
 	ctx := context.Background()
+	appEnv := getenv("APP_ENV", "development")
 	redisURL := getenv("REDIS_URL", "redis://localhost:6379")
 	databaseURL := getenv("DATABASE_URL", "postgresql://orca:orca_pass@localhost:5432/orca_db")
 	aiURL := getenv("AI_SERVICE_URL", "http://localhost:8000")
+	internalToken := getenv("INTERNAL_API_TOKEN", "dev-internal-token")
 	port := getenv("WS_PORT", "9090")
 	alertRiskThreshold := getFloat("ALERT_RISK_THRESHOLD", 70)
 	alertRecipient := getenv("ALERT_RECIPIENT_PHONE", "")
+	wsAllowedOrigins := getenv("WS_ALLOWED_ORIGINS", "")
 
 	redisOptions, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -70,10 +72,10 @@ func main() {
 		log.Println("[orca-engine] PostgreSQL connected")
 	}
 
-	aiClient := ai_client.NewAIClient(aiURL)
-	alertDispatcher := dispatcher.NewAlertDispatcher(aiURL)
+	aiClient := ai_client.NewAIClient(aiURL, internalToken)
+	alertDispatcher := dispatcher.NewAlertDispatcher(aiURL, internalToken)
 	store := state.NewShipmentStore()
-	hub := ws.NewHub()
+	hub := ws.NewHub(appEnv, wsAllowedOrigins)
 	go hub.Run()
 	if redisConnected {
 		go subscriber.Subscribe(ctx, redisClient, aiClient, alertDispatcher, store, pool, hub, subscriber.Options{
@@ -85,14 +87,17 @@ func main() {
 		go publishHubMetrics(ctx, pool, store)
 	}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "service": "orca-engine"})
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "service": "orca-engine"})
 	})
-	http.HandleFunc("/ws", hub.Handler)
+	router.GET("/ws", func(c *gin.Context) {
+		hub.Handler(c.Writer, c.Request)
+	})
 
 	log.Printf("[orca-engine] HTTP listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(router.Run(":" + port))
 }
 
 func publishHubMetrics(ctx context.Context, pool *pgxpool.Pool, store *state.ShipmentStore) {

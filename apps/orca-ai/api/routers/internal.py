@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from api.schemas.common import ok
 from api.schemas.prediction import InternalPredictRequest
-from db.queries import upsert_prediction_cache
+from core.security import require_internal_token
 from ml.delay_predictor import DelayPredictor
 from ml.sla_scorer import compute_sla_risk
 
-router = APIRouter(prefix="/internal", tags=["internal"], include_in_schema=False)
+router = APIRouter(
+    prefix="/internal",
+    tags=["internal"],
+    include_in_schema=False,
+    dependencies=[Depends(require_internal_token)],
+)
 
 
 @router.post("/predict")
@@ -25,5 +30,4 @@ async def predict_delay(payload: InternalPredictRequest, request: Request):
         "predicted_delay_hours": result["predicted_delay_hours"],
         "model_version": result["model_version"],
     }
-    await upsert_prediction_cache(request.app.state.db_pool, payload.shipment_id, response, payload.model_dump())
     return ok(response)

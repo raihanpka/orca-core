@@ -15,8 +15,9 @@ import (
 )
 
 type AIClient struct {
-	baseURL string
-	client  *http.Client
+	baseURL       string
+	internalToken string
+	client        *http.Client
 }
 
 type envelope struct {
@@ -25,10 +26,11 @@ type envelope struct {
 	Error   string                 `json:"error"`
 }
 
-func NewAIClient(baseURL string) *AIClient {
+func NewAIClient(baseURL string, internalToken string) *AIClient {
 	return &AIClient{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		client:  &http.Client{},
+		baseURL:       strings.TrimRight(baseURL, "/"),
+		internalToken: internalToken,
+		client:        &http.Client{},
 	}
 }
 
@@ -46,6 +48,9 @@ func (c *AIClient) Predict(ctx context.Context, req models.PredictRequest) (*mod
 			return nil, err
 		}
 		httpReq.Header.Set("Content-Type", "application/json")
+		if c.internalToken != "" {
+			httpReq.Header.Set("X-Internal-Token", c.internalToken)
+		}
 		resp, err := c.client.Do(httpReq)
 		if err == nil && resp.StatusCode < 500 {
 			defer resp.Body.Close()

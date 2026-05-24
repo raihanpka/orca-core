@@ -34,7 +34,7 @@ services:
   orca-ai:
     build: ./apps/orca-ai
     ports: ["8000:8000"]
-    env_file: ./apps/orca-ai/.env
+    env_file: ./.env
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -44,7 +44,7 @@ services:
   orca-engine:
     build: ./apps/orca-engine
     ports: ["9090:9090"]
-    env_file: ./apps/orca-engine/.env
+    env_file: ./.env
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -54,7 +54,7 @@ services:
   orca-web:
     build: ./apps/orca-web
     ports: ["3000:3000"]
-    env_file: ./apps/orca-web/.env.local
+    env_file: ./.env
     depends_on:
       orca-ai: {condition: service_started}
       orca-engine: {condition: service_started}

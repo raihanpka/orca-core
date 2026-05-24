@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+
 def main() -> None:
     target = ROOT / "data/raw/olist"
     target.mkdir(parents=True, exist_ok=True)

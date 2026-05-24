@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://orca:orca_pass@postgres:5432/orca_db"
     redis_url: str = "redis://redis:6379"
     prediction_cache_ttl_seconds: int = 900
+    internal_api_token: str = "dev-internal-token"
+    public_api_token: str = "dev-public-token"
+    public_rate_limit_per_minute: int = 120
 
     mlflow_tracking_uri: str = "http://mlflow:5001"
     mlflow_model_name: str = "delay-predictor"
@@ -31,7 +34,11 @@ class Settings(BaseSettings):
     kaggle_username: str = ""
     kaggle_key: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=("../../.env", ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 @lru_cache

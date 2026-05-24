@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from api.schemas.common import ok
 from core.config import get_settings
+from core.security import require_internal_token
 from services.fonnte import FonnteClient
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -16,7 +17,7 @@ class DispatchAlertRequest(BaseModel):
     recipient_phone: str | None = None
 
 
-@router.post("/dispatch")
+@router.post("/dispatch", dependencies=[Depends(require_internal_token)])
 async def dispatch_alert(payload: DispatchAlertRequest, request: Request):
     settings = get_settings()
     pool = request.app.state.db_pool

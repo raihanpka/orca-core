@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/websocket"
 
@@ -14,14 +15,25 @@ type Hub struct {
 	unregister chan *websocket.Conn
 	broadcast  chan models.WSMessage
 	clients    map[*websocket.Conn]bool
+	appEnv     string
+	origins    map[string]bool
 }
 
-func NewHub() *Hub {
+func NewHub(appEnv string, allowedOrigins string) *Hub {
+	origins := map[string]bool{}
+	for _, origin := range strings.Split(allowedOrigins, ",") {
+		origin = strings.TrimSpace(origin)
+		if origin != "" {
+			origins[origin] = true
+		}
+	}
 	return &Hub{
 		register:   make(chan *websocket.Conn),
 		unregister: make(chan *websocket.Conn),
 		broadcast:  make(chan models.WSMessage, 100),
 		clients:    make(map[*websocket.Conn]bool),
+		appEnv:     appEnv,
+		origins:    origins,
 	}
 }
 
@@ -52,7 +64,7 @@ func (h *Hub) Broadcast(msg models.WSMessage) {
 }
 
 func (h *Hub) Handler(w http.ResponseWriter, r *http.Request) {
-	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	upgrader := websocket.Upgrader{CheckOrigin: h.checkOrigin}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -64,4 +76,15 @@ func (h *Hub) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+func (h *Hub) checkOrigin(r *http.Request) bool {
+	if h.appEnv == "development" || h.appEnv == "local" {
+		return true
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return false
+	}
+	return h.origins[origin]
 }
