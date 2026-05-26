@@ -5,7 +5,13 @@ import pandas as pd
 from fastapi import APIRouter, Query, Request
 
 from api.schemas.common import ok
-from db.queries import bulk_insert_carbon_records, bulk_insert_prediction_cache, get_active_shipments, get_latest_prediction
+from db.queries import (
+    bulk_insert_carbon_records,
+    bulk_insert_prediction_cache,
+    get_active_shipments,
+    get_latest_prediction,
+    get_shipment_events,
+)
 from ml.features import FEATURE_COLUMNS, build_feature_vector
 from ml.delay_predictor import DelayPredictor
 from ml.sla_scorer import compute_sla_risk
@@ -213,5 +219,24 @@ async def shipment_prediction(shipment_id: str, request: Request):
             "intervention_options": ["reroute_via_toll", "notify_customer_proactively", "escalate_to_courier_manager"]
             if risk >= 70
             else ["monitor"],
+        }
+    )
+
+
+@router.get("/{shipment_id}/events")
+async def shipment_events(shipment_id: str, request: Request, limit: int = Query(default=20, ge=1, le=100)):
+    rows = await get_shipment_events(request.app.state.db_pool, shipment_id, limit)
+    return ok(
+        {
+            "events": [
+                {
+                    "id": str(row["id"]),
+                    "shipment_id": str(row["shipment_id"]),
+                    "event_type": row["event_type"],
+                    "event_payload": row["event_payload"] or {},
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]
         }
     )

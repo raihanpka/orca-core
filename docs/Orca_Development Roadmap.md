@@ -10,6 +10,7 @@
 ## Table of Contents
 
 - [Development Rules](#development-rules)
+- [Product Requirement Document](#product-requirement-document)
 - [Day 1: Infrastructure, Monorepo, and Data Pipeline](#day-1-infrastructure-monorepo-and-data-pipeline)
 - [Day 2: ML Training, Python API Core](#day-2-ml-training-python-api-core)
 - [Day 3: Go Engine, Alert System, API Completion](#day-3-go-engine-alert-system-api-completion)
@@ -32,6 +33,49 @@
 - [ ] Task output is functional and observable (via logs, API response, or UI)
 - [ ] No broken imports or missing dependency errors
 - [ ] Environment variables for new services are documented in `.env.example`
+
+---
+
+## Product Requirement Document
+
+- [x] Add `.docs/ORCA_PRD.md` as the product source of truth for MVP scope, enterprise proposal framing, UI/UX mockup guidance, backend API contracts, ML handoff, constraints, acceptance criteria, and research validation gaps.
+- [x] Track implementation gaps against the PRD in this roadmap while ML training is deferred.
+- [x] Link PRD from `README.md` and `.docs/Orca_AGENTS.md`.
+- [x] Start Next.js dashboard foundation with shadcn `dashboard-01` block, shadcn chart component, white dashboard shell, route optimizer, shipment detail, carbon analytics, and hub analytics MVP screens.
+- [ ] Upgrade Next.js from `14.2.3` to a patched release before demo publication, then rerun `pnpm build`.
+- [ ] Replace internal SVG map adapter with real MapCN MapLibre components after route geometry contract is finalized.
+- [ ] Add WebSocket browser client for live dashboard row updates.
+- [ ] Keep the PRD updated when UI flow, API contract, security boundary, or ML output changes.
+
+### MVP Implementation Gap Tracker
+
+Assumption: production ML integration is deferred while the ML role trains and registers the final model.
+Frontend visual direction must stay close to the official shadcn `dashboard-01` block with monochrome shadcn theme.
+
+| No | Gap | Area | Priority | Status | Completion Criteria |
+|---|---|---|---|---|---|
+| 1 | Next.js major upgrade | Frontend | High | Done | Upgrade to `next@16.2.6`, React 19, approve required `sharp` build, set Turbopack root, then rerun `pnpm build` |
+| 2 | Real MapCN integration | Frontend | High | Done | MapCN MapLibre component installed, route and hub maps use `Map`, `MapRoute`, and `MapMarker` |
+| 3 | Route geometry API | Backend | High | Done | `/optimize/route` returns `route_geometry.coordinates` per Pareto solution |
+| 4 | WebSocket browser client | Frontend | High | Done | UI connects to engine WebSocket and patches dashboard risk rows |
+| 5 | Shipment event history | Backend | High | Done | `shipment_events` table, engine insert, API endpoint, and shipment detail timeline are implemented |
+| 6 | Alert management page | Frontend | Medium | Done | `/alerts` page includes filter, status, intervention, and alert history table |
+| 7 | Settings page | Frontend | Medium | Done | `/settings` shows API base, token presence, polling interval, and WebSocket status |
+| 8 | Carbon export | Frontend | Medium | Done | Carbon dashboard can export CSV |
+| 9 | Hub detail panel | Frontend | Medium | Done | Selecting a hub opens a detail panel with dwell, inbound, delay rate, and affected shipment placeholder |
+| 10 | Backend API contract tests | Backend | High | Done | Added tests for public token and internal token boundaries |
+| 11 | Redis to WebSocket integration test | Backend | High | Pending | Requires live Redis, database, and engine process; keep for integration test phase |
+| 12 | Recharts v3 upgrade | Frontend | Low | Done | Upgraded to `recharts@3.8.1` and patched shadcn chart tooltip and legend types |
+
+### Deferred ML Work
+
+| No | Item | Owner | Status | Needed Output |
+|---|---|---|---|---|
+| 1 | Train calibrated delay model | ML | Deferred | Registered MLflow production model |
+| 2 | Validate feature parity | ML and Backend | Deferred | Same feature columns for training and inference |
+| 3 | Generate real SHAP values | ML | Deferred | Contribution list consumable by shipment detail UI |
+| 4 | Calibrate risk thresholds | ML and Product | Deferred | Low, medium, high risk boundary |
+| 5 | Produce model card | ML | Deferred | Dataset, metrics, limitations, drift risks |
 
 ---
 

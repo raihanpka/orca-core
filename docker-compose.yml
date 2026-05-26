@@ -52,7 +52,9 @@ services:
     networks: [orca-net]
 
   orca-web:
-    build: ./apps/orca-web
+    build:
+      context: .
+      dockerfile: ./apps/orca-web/Dockerfile
     ports: ["3000:3000"]
     env_file: ./.env
     depends_on:

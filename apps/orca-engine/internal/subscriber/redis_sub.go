@@ -53,6 +53,9 @@ func Subscribe(ctx context.Context, redisClient *redis.Client, ai *ai_client.AIC
 				log.Printf(`{"service":"orca-engine","level":"ERROR","action":"shipment_upsert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
 				continue
 			}
+			if err := orcadb.InsertShipmentEvent(ctx, pool, event); err != nil {
+				log.Printf(`{"service":"orca-engine","level":"WARN","action":"shipment_event_insert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
+			}
 			if err := orcadb.InsertCarbonRecord(ctx, pool, event); err != nil {
 				log.Printf(`{"service":"orca-engine","level":"WARN","action":"carbon_insert_failed","shipment_id":%q,"error":%q}`, event.ShipmentID, err.Error())
 			}

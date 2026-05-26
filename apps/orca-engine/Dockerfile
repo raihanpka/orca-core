@@ -3,7 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum* ./
 RUN go mod download
 COPY . .
-RUN go build -o /bin/orca-engine .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/orca-engine .
 
 FROM alpine:latest
 WORKDIR /app

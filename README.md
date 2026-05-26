@@ -1,11 +1,11 @@
 # ORCA: Optimized Routing & Carbon Analytics
 
-ORCA is a real-time logistics intelligence platform built for Blibli. It combines LightGBM delay prediction, NSGA-II multi-objective route optimization, and GLEC-certified carbon tracking into a unified dashboard. The system models SLA risk dynamically - not as a static snapshot - using a Go concurrency engine that listens to live shipment events and pushes risk scores to the dashboard via WebSocket.
+ORCA is a real-time logistics intelligence platform built for Blibli Case. It combines LightGBM delay prediction, NSGA-II multi-objective route optimization, and GLEC-certified carbon tracking into a unified dashboard. The system models SLA risk dynamically, not as a static snapshot, using a Go concurrency engine that listens to live shipment events and pushes risk scores to the dashboard via WebSocket.
 
 ## Foundation
 
 * **Delay Prediction:** LightGBM with `CalibratedClassifierCV` outputs well-calibrated delay probabilities, not just binary classifications. SHAP values expose the exact feature contributions behind each prediction.
-* **Multi-Objective Routing:** NSGA-II (pymoo) simultaneously minimizes travel time, fuel cost, CO₂ emissions, and SLA risk - treating SLA compliance as a hard constraint via penalty, not a post-hoc filter.
+* **Multi-Objective Routing:** NSGA-II (pymoo) simultaneously minimizes travel time, fuel cost, CO₂ emissions, and SLA risk, treating SLA compliance as a hard constraint via penalty, not a post-hoc filter.
 * **Carbon Accounting:** CO₂ calculations follow the GLEC Framework v3.0 (`CO₂ = distance × load_ton × emission_factor`), with factors sourced directly from the database at runtime.
 
 ## How It Works
@@ -32,12 +32,16 @@ orca/
 │   ├── raw/olist/            # Downloaded Olist CSVs (gitignored)
 │   └── processed/            # Feature-engineered parquet files (gitignored)
 ├── scripts/
-│   ├── ingest/               # download_olist.py, build_features.py, seed_db.py
+│   ├── ingest/               # build_features.py, seed_db.py
 │   └── simulate/             # stream_replay.py, demo_scenario_1-3.py
 ├── infra/
 │   └── init-db/01_schema.sql # TimescaleDB schema (auto-mounted on first container start)
 └── mlruns/                   # MLflow artifact storage
 ```
+
+## Product Documents
+
+- [Product Requirement Document](.docs/ORCA_PRD.md)
 
 ## Technology Stack
 
@@ -49,9 +53,6 @@ orca/
 | **Databases** | PostgreSQL 15 + TimescaleDB, Redis 7 | Time-series predictions, pub/sub, caching |
 | **Infrastructure** | Docker Compose v2, MLflow | Orchestration, model registry |
 | **External APIs** | HERE Maps, BMKG, Fonnte (WhatsApp), Olist (Kaggle) | Distance, weather, alerts, training data |
-
-> **No gRPC.** All inter-service communication is standard REST over the Docker bridge network.
-> Redis and PostgreSQL have no host port mappings - only reachable within the Docker network.
 
 ## Prerequisites
 
@@ -75,7 +76,7 @@ Download links:
 ```bash
 docker --version      # >= 24
 python3 --version     # >= 3.11
-go version            # >= 1.22
+go version            # >= 1.23
 uv --version
 pnpm --version        # >= 10
 ```
