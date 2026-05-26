@@ -1,0 +1,7 @@
+api
+core
+db
+main
+ml
+services
+training
