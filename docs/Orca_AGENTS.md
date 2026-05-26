@@ -11,6 +11,7 @@ document before making any modifications in this repository.
 ## Table of Contents
 
 - [Project Identity](#project-identity)
+- [Product Requirements](#product-requirements)
 - [System Architecture Overview](#system-architecture-overview)
 - [Technology Stack](#technology-stack)
 - [Folder Architecture](#folder-architecture)
@@ -38,6 +39,16 @@ document before making any modifications in this repository.
 | **Target Users** | Blibli logistics operations managers, fleet dispatchers, sustainability officers |
 | **Target Scale** | Prototype: 10,000 to 50,000 simulated shipments per demo run |
 | **Competition Context** | AI Open Innovation Challenge 2026, Blibli Case 1: AI-Powered Green and Resilient Logistics Network |
+
+---
+
+## Product Requirements
+
+| Document | Purpose |
+|---|---|
+| [`ORCA_PRD.md`](./ORCA_PRD.md) | Product Requirement Document for MVP proposal, enterprise framing, UI/UX mockup guidance, backend scope, ML handoff, constraints, and acceptance criteria |
+
+Agents must keep this PRD aligned when product scope, API contracts, UI screen requirements, security boundaries, dataset location, or ML handoff expectations change.
 
 ---
 

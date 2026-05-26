@@ -19,13 +19,22 @@ def _emission_factor(vehicle_type: str) -> float:
     return 0.025 if "electric" in vehicle_type else 0.243
 
 
+def _origin_for_hub(origin_hub: str) -> tuple[float, float]:
+    hubs = {
+        "hub_jakarta_selatan": (-6.2610, 106.8060),
+        "hub_jakarta_timur": (-6.2200, 106.9000),
+        "hub_tangerang": (-6.1780, 106.6300),
+    }
+    return hubs.get(origin_hub, (-6.2000, 106.8167))
+
+
 class RoutingProblem(Problem):
-    def __init__(self, stops: list[DeliveryStop], vehicle_type: str, load_weight_kg: float):
+    def __init__(self, stops: list[DeliveryStop], vehicle_type: str, load_weight_kg: float, origin_hub: str):
         super().__init__(n_var=len(stops), n_obj=4, n_ieq_constr=1, xl=0.0, xu=1.0)
         self.stops = stops
         self.vehicle_type = vehicle_type
         self.load_weight_kg = load_weight_kg
-        self.origin = (-6.2000, 106.8167)
+        self.origin = _origin_for_hub(origin_hub)
         self.factor = _emission_factor(vehicle_type)
 
     def _evaluate(self, x, out, *args, **kwargs):
@@ -61,8 +70,15 @@ class RoutingProblem(Problem):
         latest_deadline = min(stop.sla_deadline for stop in ordered_stops)
         remaining_min = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 60
         sla_risk = 100.0 if travel_time_min > remaining_min else min(65.0, travel_time_min / max(remaining_min, 1) * 50)
+        geometry_coordinates = [[self.origin[1], self.origin[0]]] + [
+            [stop.destination_lng, stop.destination_lat] for stop in ordered_stops
+        ]
         return {
             "stops_order": [stop.shipment_id for stop in ordered_stops],
+            "route_geometry": {
+                "type": "LineString",
+                "coordinates": geometry_coordinates,
+            },
             "travel_time_min": travel_time_min,
             "co2_kg": co2_kg,
             "fuel_cost_idr": fuel_cost_idr,

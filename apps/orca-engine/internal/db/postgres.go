@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -13,7 +14,24 @@ func NewPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pool, pool.Ping(ctx)
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+	return pool, EnsureRuntimeSchema(ctx, pool)
+}
+
+func EnsureRuntimeSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	_, err := pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS shipment_events (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			shipment_id UUID NOT NULL REFERENCES shipments(id),
+			event_type VARCHAR(50) NOT NULL,
+			event_payload JSONB NOT NULL DEFAULT '{}',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_shipment_events_shipment ON shipment_events(shipment_id, created_at DESC);
+	`)
+	return err
 }
 
 func InsertPrediction(ctx context.Context, pool *pgxpool.Pool, shipmentID string, delayProb, riskScore, predictedDelayHrs float64, modelVersion string, featuresJSON []byte) error {
@@ -21,6 +39,18 @@ func InsertPrediction(ctx context.Context, pool *pgxpool.Pool, shipmentID string
 		INSERT INTO shipment_predictions (time, shipment_id, delay_probability, sla_risk_score, predicted_delay_hrs, model_version, features_json)
 		VALUES (NOW(), $1::uuid, $2, $3, $4, $5, $6::jsonb)
 	`, shipmentID, delayProb, riskScore, predictedDelayHrs, modelVersion, string(featuresJSON))
+	return err
+}
+
+func InsertShipmentEvent(ctx context.Context, pool *pgxpool.Pool, event models.ShipmentEvent) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, `
+		INSERT INTO shipment_events (shipment_id, event_type, event_payload)
+		VALUES ($1::uuid, $2, $3::jsonb)
+	`, event.ShipmentID, "shipment_event", string(payload))
 	return err
 }
 
