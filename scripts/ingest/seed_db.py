@@ -40,7 +40,7 @@ async def main() -> None:
             int(row["item_count"] or 1),
             sla_deadline + timedelta(days=3650),
             dispatched_at + timedelta(days=3650),
-            float(row["distance_km"]),
+            float(row.get("distance_km", 30.0)),
         )
         count += 1
     await conn.close()
