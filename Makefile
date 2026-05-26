@@ -1,7 +1,7 @@
 UV ?= uv
 PNPM ?= pnpm
 
-.PHONY: install infra-up infra-down dev dev-down dev-ai dev-engine dev-web download-data build-features seed-db train evaluate simulate test test-ai test-engine clean
+.PHONY: install infra-up infra-down dev dev-ml dev-down dev-ai dev-engine dev-web download-data build-features seed-db train evaluate validate-shap simulate test test-ai test-engine clean
 
 install:
 	cd apps/orca-ai && $(UV) sync --extra dev
@@ -16,6 +16,9 @@ infra-down:
 
 dev:
 	docker compose up -d
+
+dev-ml:
+	docker compose up -d postgres redis mlflow orca-ai orca-engine
 
 dev-down:
 	docker compose down
@@ -44,6 +47,9 @@ train:
 evaluate:
 	cd apps/orca-ai && $(UV) run python training/evaluate.py
 
+validate-shap:
+	cd apps/orca-ai && $(UV) run python training/validate_shap.py
+
 simulate:
 	cd apps/orca-ai && $(UV) run python ../../scripts/simulate/stream_replay.py
 
@@ -56,4 +62,4 @@ test-engine:
 	cd apps/orca-engine && go test ./...
 
 clean:
-	rm -rf apps/orca-ai/.pytest_cache apps/orca-ai/.coverage apps/orca-ai/**/__pycache__ data/processed/*.parquet data/processed/*.pkl data/processed/*.png
+	rm -rf apps/orca-ai/.pytest_cache apps/orca-ai/.coverage apps/orca-ai/**/__pycache__ data/processed/*.parquet data/processed/*.pkl data/processed/*.png data/processed/*.json

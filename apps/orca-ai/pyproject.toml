@@ -9,7 +9,7 @@ dependencies = [
   "lightgbm>=4",
   "pymoo>=0.6",
   "scikit-learn>=1.5",
-  "mlflow>=2",
+  "mlflow>=2.13,<2.20",
   "asyncpg",
   "redis[asyncio]>=5",
   "httpx",
@@ -21,6 +21,8 @@ dependencies = [
   "osmnx>=1.9",
   "python-dotenv",
   "kaggle",
+  "jupyter>=1.1.1",
+  "seaborn>=0.13.2",
 ]
 
 [project.optional-dependencies]

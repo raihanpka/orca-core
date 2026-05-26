@@ -102,12 +102,22 @@ def _label_solutions(solutions: list[dict]) -> list[dict]:
 async def optimize_route(stops: list[DeliveryStop], vehicle_type: str, load_weight_kg: float, origin_hub: str) -> tuple[list[dict], int, bool]:
     started = time.perf_counter()
     settings = get_settings()
-    problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub)
-    algorithm = NSGA2(pop_size=settings.nsga2_population_size)
+
+    # In demo mode, use smaller population and fewer generations so the API
+    # responds well within the 5-second target for live demonstrations.
+    if settings.demo_mode:
+        pop_size = min(settings.nsga2_population_size, 30)
+        n_gen = min(settings.nsga2_generations, 50)
+    else:
+        pop_size = settings.nsga2_population_size
+        n_gen = settings.nsga2_generations
+
+    problem = RoutingProblem(stops, vehicle_type, load_weight_kg)
+    algorithm = NSGA2(pop_size=pop_size)
     result = minimize(
         problem,
         algorithm,
-        ("n_gen", settings.nsga2_generations),
+        ("n_gen", n_gen),
         seed=42,
         verbose=False,
     )

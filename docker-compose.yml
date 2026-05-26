@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: orca
       POSTGRES_PASSWORD: orca_pass
       POSTGRES_DB: orca_db
+    ports:
+      - "5437:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/init-db:/docker-entrypoint-initdb.d
@@ -17,6 +19,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    ports:
+      - "6380:6379"
     networks: [orca-net]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
