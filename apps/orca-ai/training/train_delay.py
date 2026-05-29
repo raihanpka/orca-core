@@ -9,12 +9,18 @@ Usage (from repo root):
     cd apps/orca-ai && uv run python training/train_delay.py
 """
 
+import io
 import json
 import logging
 import os
 import pickle
 import sys
 import warnings
+
+# Windows cp1252 terminals cannot encode MLflow's emoji output — force UTF-8.
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 from pathlib import Path
 
 # Silence the noisy "X does not have valid feature names" warning that fires for
@@ -161,8 +167,14 @@ def main() -> None:
     # Feature metadata — loaded by mlflow_client for contract validation.
     feature_meta = {
         "feature_columns": FEATURE_COLUMNS,
-        "feature_version": "v1",
-        "dataset_version": "olist-v1",
+        "feature_version": "v3",
+        "dataset_version": "olist-v3",
+        "n_features": len(FEATURE_COLUMNS),
+        "gems": [
+            "hub_dwell_time", "payment_type", "seller_review",
+            "product_category", "seller_punctuality", "holiday_calendar",
+            "product_volume_density",
+        ],
     }
     meta_path = PROCESSED / "feature_metadata.json"
     with meta_path.open("w") as f:
@@ -170,9 +182,10 @@ def main() -> None:
 
     with mlflow.start_run(run_name="lightgbm-calibrated") as run:
         mlflow.set_tags({
-            "dataset_version": "olist-v1",
-            "feature_version": "v1",
+            "dataset_version": "olist-v3",
+            "feature_version": "v3",
             "feature_columns": ",".join(FEATURE_COLUMNS),
+            "n_features": str(len(FEATURE_COLUMNS)),
         })
         mlflow.log_params(final_params)
         mlflow.log_metric("cv_f1_best", best_cv_f1)
