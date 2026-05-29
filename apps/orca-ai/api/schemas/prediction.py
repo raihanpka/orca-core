@@ -18,6 +18,27 @@ class InternalPredictRequest(BaseModel):
     price: float = Field(default=100.0, ge=0)
     payment_installments: int = Field(default=1, ge=1)
     same_state_delivery: int = Field(default=0, ge=0, le=1)
+    # v3 Gem #1: hub dwell
+    historical_hub_dwell_hours: float = Field(default=24.0, ge=0)
+    # v3 Gem #2: payment type flags
+    payment_boleto: int = Field(default=0, ge=0, le=1)
+    payment_voucher: int = Field(default=0, ge=0, le=1)
+    payment_debit: int = Field(default=0, ge=0, le=1)
+    # v3 Gem #3: seller review
+    historical_seller_review: float = Field(default=4.0, ge=1, le=5)
+    # v3 Gem #4: product category delay rate
+    category_delay_rate: float = Field(default=0.08, ge=0, le=1)
+    # v3 Gem #5: seller punctuality
+    historical_seller_punctuality: float = Field(default=0.0)
+    # v3 Gem #6: calendar flags
+    is_holiday: int = Field(default=0, ge=0, le=1)
+    is_strike_window: int = Field(default=0, ge=0, le=1)
+    is_pre_christmas: int = Field(default=0, ge=0, le=1)
+    is_black_friday_week: int = Field(default=0, ge=0, le=1)
+    # v3 Gem #7: product volume/density
+    product_volume_cm3: float = Field(default=3000.0, ge=0)
+    product_density: float = Field(default=0.33, ge=0)
+    is_bulky: int = Field(default=0, ge=0, le=1)
     remaining_hours_to_sla: float
 
 
