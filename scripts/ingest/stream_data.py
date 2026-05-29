@@ -26,7 +26,7 @@ DESTINATIONS = [
     {"zone": "Kecamatan Cikarang Pusat, Bekasi", "lat": -6.3688, "lng": 107.1643},
 ]
 
-HUBS = ["hub_jakarta_selatan", "hub_jakarta_utara", "hub_bogor", "hub_depok"]
+HUBS = ["hub_cakung", "hub_kebon_jeruk", "hub_pasar_minggu", "hub_kelapa_gading", "hub_cimanggis"]
 VEHICLES = ["van_diesel", "truck_lt35t", "truck_35_75t", "truck_gt75t", "scooter_electric"]
 
 async def main() -> None:
@@ -42,11 +42,14 @@ async def main() -> None:
             now = datetime.now()
             loc = random.choice(DESTINATIONS)
             
-            ext_id = f"STRM-{now.strftime('%H%M%S')}-{random.randint(100, 999)}"
+            ext_id = f"BLI-T{now.strftime('%H%M%S')}-{random.randint(10, 99)}"
             shipment_id = uuid.uuid5(SHIPMENT_NAMESPACE, ext_id)
             
-            # SLA 2 to 48 hours from now
-            hours_to_sla = random.randint(2, 48)
+            # 80% routine, 20% high risk
+            if random.random() < 0.8:
+                hours_to_sla = random.randint(24, 48)
+            else:
+                hours_to_sla = random.randint(1, 4)
             sla_deadline = now + timedelta(hours=hours_to_sla)
             
             # Add some jitter to coordinates for variety even in same district

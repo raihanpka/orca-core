@@ -1,7 +1,7 @@
 "use client"
 
 import useSWR from "swr"
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, PieChart, Pie, Cell, Label } from "recharts"
+import { CartesianGrid, Bar, BarChart, XAxis, YAxis, PieChart, Pie, Cell, Label } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -95,13 +95,13 @@ function CarbonFootprintTab() {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
             <ChartContainer config={dailyChartConfig} className="h-[250px] w-full">
-              <LineChart data={data.by_day}>
+              <BarChart data={data.by_day}>
                 <CartesianGrid vertical={false} stroke="#E2E8F0" />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} stroke="#94A3B8" />
                 <YAxis fontSize={12} stroke="#94A3B8" tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                <Line type="monotone" dataKey="co2_kg" stroke="#334155" strokeWidth={2} dot={{r: 2, fill: "#334155"}} activeDot={{r: 4}} />
-              </LineChart>
+                <Bar dataKey="co2_kg" fill="#334155" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -181,17 +181,17 @@ function CarbonFootprintTab() {
         <Table>
           <TableHeader className="bg-slate-50/50">
             <TableRow className="border-slate-200 text-xs tracking-wider">
-              <TableHead className="font-semibold text-slate-500 uppercase">Vehicle Type</TableHead>
+              <TableHead className="font-semibold text-slate-500 uppercase pl-6">Vehicle Type</TableHead>
               <TableHead className="font-semibold text-slate-500 uppercase">Shipment Count</TableHead>
-              <TableHead className="font-semibold text-slate-500 uppercase">Total CO2</TableHead>
+              <TableHead className="font-semibold text-slate-500 uppercase pr-6">Total CO2</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.by_vehicle_type.map((item) => (
               <TableRow key={item.vehicle_type} className="border-slate-200">
-                <TableCell className="font-medium text-slate-900">{toTitleCase(item.vehicle_type)}</TableCell>
+                <TableCell className="font-medium text-slate-900 pl-6">{toTitleCase(item.vehicle_type)}</TableCell>
                 <TableCell>{formatNumber(item.shipment_count, 0)}</TableCell>
-                <TableCell>{formatNumber(item.co2_kg, 1)} kg</TableCell>
+                <TableCell className="pr-6">{formatNumber(item.co2_kg, 1)} kg</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -238,7 +238,7 @@ function HubHealthTab() {
           <TableBody>
             {hubs.map((hub) => (
                 <TableRow key={hub.hub_id} className="border-slate-200">
-                  <TableCell className="font-medium text-slate-600">{hub.hub_id}</TableCell>
+                  <TableCell className="font-medium text-slate-600">{toTitleCase(hub.hub_id)}</TableCell>
                   <TableCell className="text-slate-900">{hub.hub_name}</TableCell>
                   <TableCell className="text-right">{hub.current_inbound_volume}</TableCell>
                   <TableCell className="text-right">{(hub.avg_dwell_time_min / 60).toFixed(1)} hrs</TableCell>

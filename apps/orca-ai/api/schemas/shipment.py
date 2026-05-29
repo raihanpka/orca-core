@@ -15,6 +15,8 @@ class ShipmentSummary(BaseModel):
     sla_risk_score: float | None = None
     predicted_delay_hours: float | None = None
     co2_kg: float | None = None
+    distance_km: float | None = None
+    load_weight_kg: float | None = None
     status: str
     intervention_recommended: str | None = None
 

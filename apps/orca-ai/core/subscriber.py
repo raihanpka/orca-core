@@ -38,17 +38,23 @@ async def process_shipment_event(app: FastAPI, payload: dict):
     # 1.5. Ensure shipment exists in shipments table
     await pool.execute(
         """
-        INSERT INTO shipments (id, order_id, status, origin_hub_id, current_hub_id, destination_lat, destination_lng, weight_kg, volume_m3, current_traffic_level, vehicle_type, route_geometry, created_at, updated_at)
-        VALUES ($1::uuid, $2, 'in_transit', $3, $3, $4, $5, $6, $7, 'normal', 'van', NULL, NOW(), NOW())
+        INSERT INTO shipments (
+            id, external_id, status, origin_hub_id, current_hub_id, 
+            destination_zone, customer_lat, customer_lng, weight_kg, 
+            item_count, vehicle_type, created_at, updated_at
+        )
+        VALUES ($1::uuid, $2, 'in_transit', $3, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
         ON CONFLICT (id) DO NOTHING
         """,
         shipment_id, 
-        payload.get("order_id", "sim-order"),
+        payload.get("external_id") or f"SIM-{str(shipment_id)[:8]}",
         payload.get("origin_hub_id", "hub_unknown"),
+        payload.get("destination_zone", "Unknown Zone"),
         payload.get("destination_lat", 0.0),
         payload.get("destination_lng", 0.0),
-        payload.get("weight_kg", 0.0),
-        payload.get("volume_m3", 0.0)
+        payload.get("weight_kg", 1.0),
+        payload.get("item_count", 1),
+        payload.get("vehicle_type", "van_diesel")
     )
 
     # 2. Update DB with new prediction state
@@ -73,20 +79,29 @@ async def process_shipment_event(app: FastAPI, payload: dict):
             shipment_id, alert_type
         )
         if not existing:
-            # We skip actual WhatsApp sending in background for MVP safety, but we log the alert
+            sent = False
+            if settings.fonnte_api_key and settings.alert_recipient_phone:
+                from services.fonnte import FonnteClient
+                client = FonnteClient(settings.fonnte_api_key, settings.fonnte_api_url)
+                msg = f"ORCA AI ALERT 🚨\nShipment {ext_id if 'ext_id' in locals() else str(shipment_id)[:8]} is at HIGH RISK ({risk_score:.1f}%).\nSuggested Intervention: Dispatch via Alternate Route."
+                sent = await client.send_alert(settings.alert_recipient_phone, msg)
+            
             await pool.execute(
                 """
                 INSERT INTO alert_logs (shipment_id, alert_type, sla_risk_score, intervention, notified_via)
                 VALUES ($1::uuid, $2, $3, $4, $5)
                 """,
-                shipment_id, alert_type, risk_score, "reroute_via_toll", []
+                shipment_id, alert_type, risk_score, "Dispatch via Alternate Route", ["whatsapp"] if sent else []
             )
             logger.info("Alert recorded for shipment %s (Risk: %.1f)", shipment_id, risk_score)
 
-    # 4. Hub Metrics Update (Upsert simple counter for the MVP)
-    import random
+    # 4. Hub Metrics Update
     origin_hub = payload.get("origin_hub_id", "hub_unknown")
-    realistic_dwell = random.uniform(60, 360) # 1h to 6h dwell time in minutes
+    
+    # Fetch historical dwell time for more realistic tracking
+    from db.queries import get_hub_historical_rates
+    rates = await get_hub_historical_rates(pool, origin_hub)
+    realistic_dwell = rates["avg_dwell_min"]
     
     await pool.execute(
         """

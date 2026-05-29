@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     mlflow_model_stage: str = "Production"
 
     open_meteo_api_url: str = "https://api.open-meteo.com/v1/forecast"
+    tomtom_api_key: str = ""
     fonnte_api_key: str = ""
     fonnte_api_url: str = "https://api.fonnte.com/send"
     alert_recipient_phone: str = ""

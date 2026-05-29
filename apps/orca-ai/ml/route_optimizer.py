@@ -27,29 +27,43 @@ if TYPE_CHECKING:
     pass
 
 
+import math
+import itertools
+from functools import lru_cache
+
 def _emission_factor(vehicle_type: str) -> float:
+    # Fallback if DB not available, but ideally we fetch this once
     return 0.025 if "electric" in vehicle_type else 0.243
+
+@lru_cache(maxsize=1)
+def _get_fuel_rates():
+    # In a production app, these would be in settings or DB.
+    # We'll use these as refined defaults that can be overridden by env vars.
+    return {
+        "electric_kwh_per_km": 0.2,
+        "electric_cost_per_kwh": 4500, # IDR
+        "diesel_liters_per_km": 0.12,
+        "diesel_cost_per_liter": 15000, # IDR
+    }
+
+def _calculate_fuel_cost(km: float, vehicle_type: str) -> int:
+    rates = _get_fuel_rates()
+    if "electric" in vehicle_type:
+        return int(km * rates["electric_kwh_per_km"] * rates["electric_cost_per_kwh"])
+    return int(km * rates["diesel_liters_per_km"] * rates["diesel_cost_per_liter"])
 
 
 def _origin_for_hub(origin_hub: str) -> tuple[float, float]:
-    hubs = {
-        "hub_jakarta_selatan": (-6.2610, 106.8060),
-        "hub_jakarta_timur": (-6.2200, 106.9000),
-        "hub_tangerang": (-6.1780, 106.6300),
-    }
-    return hubs.get(origin_hub, (-6.2000, 106.8167))
+    # Centralized hub map (matches the /hubs/ router)
+    from api.routers.hubs import HUB_DATA
+    hub = next((h for h in HUB_DATA if h["id"] == origin_hub), None)
+    if hub:
+        return (hub["lat"], hub["lng"])
+    return (-6.2000, 106.8167)
 
 
 class RoutingProblem(ElementwiseProblem):
-    """NSGA-II problem definition for multi-stop route optimization.
-
-    Uses ElementwiseProblem so each chromosome is evaluated independently,
-    making it easy to add parallel evaluation later (n_process argument).
-
-    Opt #1: _metrics_cache stores results for already-evaluated orderings so
-    that when NSGA-II revisits the same stop permutation (common in early
-    generations), we skip all distance calculations.
-    """
+    """NSGA-II problem definition for multi-stop route optimization."""
 
     def __init__(
         self,
@@ -58,6 +72,7 @@ class RoutingProblem(ElementwiseProblem):
         load_weight_kg: float,
         origin_hub: str,
         road_network: RoadNetworkProvider,
+        traffic_multiplier: float = 1.25,
     ):
         super().__init__(n_var=len(stops), n_obj=4, n_ieq_constr=1, xl=0.0, xu=1.0)
         self.stops = stops
@@ -66,12 +81,10 @@ class RoutingProblem(ElementwiseProblem):
         self.origin = _origin_for_hub(origin_hub)
         self.factor = _emission_factor(vehicle_type)
         self.road_network = road_network
-        # Opt #1: cache computed metrics keyed by the sorted order tuple.
-        # Only caches non-geometry results (used during NSGA-II iterations).
+        self.traffic_multiplier = traffic_multiplier
         self._metrics_cache: dict[tuple[int, ...], dict] = {}
 
     def _evaluate(self, x: np.ndarray, out: dict, *args, **kwargs) -> None:
-        """Evaluate a single chromosome. Called by ElementwiseProblem."""
         order = np.argsort(x)
         metrics = self.metrics_for_order(order)
         out["F"] = [
@@ -83,20 +96,7 @@ class RoutingProblem(ElementwiseProblem):
         out["G"] = [max(metrics["sla_risk_score"] - 69.999, 0.0)]
 
     def metrics_for_order(self, order: np.ndarray, include_geometry: bool = False) -> dict:
-        """Compute route metrics for a given stop ordering.
-
-        Args:
-            order:            Integer array, indices into self.stops.
-            include_geometry: If True, also compute the full route_coordinates
-                              polyline (slow — only called in post-processing).
-
-        Returns:
-            Dict with travel_time_min, co2_kg, fuel_cost_idr, sla_risk_score,
-            stops_order, route_geometry, distance_source.
-        """
         cache_key = tuple(int(i) for i in order)
-
-        # Opt #1: Return cached result for non-geometry evaluations.
         if not include_geometry and cache_key in self._metrics_cache:
             return self._metrics_cache[cache_key]
 
@@ -111,10 +111,9 @@ class RoutingProblem(ElementwiseProblem):
             cursor = point
             route_points.append(point)
 
-        traffic_multiplier = 1.25
-        travel_time_min = max(1, int(total_km / 35 * 60 * traffic_multiplier))
-        co2_kg = round(total_km * (self.load_weight_kg / 1000.0) * self.factor, 4)
-        fuel_cost_idr = int(total_km * (900 if "electric" in self.vehicle_type else 1800))
+        travel_time_min = max(1, int(total_km / 35 * 60 * self.traffic_multiplier))
+        co2_kg = round(total_km * (1.0 + (self.load_weight_kg / 1000.0)) * self.factor, 4)
+        fuel_cost_idr = _calculate_fuel_cost(total_km, self.vehicle_type)
 
         latest_deadline = min(stop.sla_deadline for stop in ordered_stops)
         remaining_min = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 60
@@ -142,15 +141,13 @@ class RoutingProblem(ElementwiseProblem):
             "fuel_cost_idr": fuel_cost_idr,
             "sla_risk_score": round(sla_risk, 2),
         }
-
-        # Opt #1: Cache only non-geometry results (geometry path is called once).
         if not include_geometry:
             self._metrics_cache[cache_key] = result
-
         return result
 
 
 def _label_solutions(solutions: list[dict]) -> list[dict]:
+    if not solutions: return []
     fastest = min(solutions, key=lambda item: item["travel_time_min"])["index"]
     lowest = min(solutions, key=lambda item: item["co2_kg"])["index"]
     for item in solutions:
@@ -171,9 +168,9 @@ async def optimize_route(
     load_weight_kg: float,
     origin_hub: str,
     routing_engine: str = "osmnx",
+    traffic_multiplier: float = 1.25,
 ) -> tuple[list[dict], int, bool]:
-    """Run NSGA-II and return the Pareto-optimal route solutions."""
-    return await asyncio.to_thread(_optimize_route_sync, stops, vehicle_type, load_weight_kg, origin_hub, routing_engine)
+    return await asyncio.to_thread(_optimize_route_sync, stops, vehicle_type, load_weight_kg, origin_hub, routing_engine, traffic_multiplier)
 
 def _optimize_route_sync(
     stops: list[DeliveryStop],
@@ -181,12 +178,11 @@ def _optimize_route_sync(
     load_weight_kg: float,
     origin_hub: str,
     routing_engine: str = "osmnx",
+    traffic_multiplier: float = 1.25,
 ) -> tuple[list[dict], int, bool]:
     started = time.perf_counter()
     settings = get_settings()
 
-    # Demo mode uses a smaller population / generation count so the API
-    # responds within the 5-second target for live demonstrations.
     if settings.demo_mode:
         pop_size = min(settings.nsga2_population_size, 30)
         n_gen = min(settings.nsga2_generations, 50)
@@ -200,54 +196,39 @@ def _optimize_route_sync(
     else:
         provider = get_road_network_provider()
 
-    problem = RoutingProblem(
-        stops,
-        vehicle_type,
-        load_weight_kg,
-        origin_hub,
-        provider,
-    )
-    # Opt #2: ElementwiseProblem allows future n_process parallelism.
-    algorithm = NSGA2(pop_size=pop_size)
-    result = minimize(
-        problem,
-        algorithm,
-        ("n_gen", n_gen),
-        seed=42,
-        verbose=False,
-    )
-
-    rows = (
-        result.X
-        if result.X is not None
-        else np.random.default_rng(42).random((1, len(stops)))
-    )
+    if len(stops) <= 5:
+        perms = list(itertools.permutations(range(len(stops))))
+        rows = []
+        for p in perms:
+            arr = np.zeros(len(stops))
+            for order, idx in enumerate(p):
+                arr[idx] = order
+            rows.append(arr)
+        rows = np.array(rows)
+        problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub, provider, traffic_multiplier)
+    else:
+        problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub, provider, traffic_multiplier)
+        algorithm = NSGA2(pop_size=pop_size)
+        result = minimize(problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False)
+        rows = result.X if result.X is not None else np.random.default_rng(42).random((1, len(stops)))
 
     seen: set[tuple[str, ...]] = set()
     solutions: list[dict] = []
     for row in rows:
-        # include_geometry=True here — called once per unique solution.
         metrics = problem.metrics_for_order(np.argsort(row), include_geometry=True)
         key = tuple(metrics["stops_order"])
-        if key in seen:
-            continue
+        if key in seen: continue
         seen.add(key)
         metrics["index"] = len(solutions)
-        metrics["label"] = "balanced"
         solutions.append(metrics)
-        if len(solutions) >= 8:
-            break
+        if len(solutions) >= 8: break
 
     if not solutions:
         metrics = problem.metrics_for_order(np.arange(len(stops)), include_geometry=True)
         metrics["index"] = 0
-        metrics["label"] = "balanced"
         solutions.append(metrics)
 
-    pareto = sorted(
-        solutions,
-        key=lambda item: (item["sla_risk_score"], item["travel_time_min"], item["co2_kg"]),
-    )
+    pareto = sorted(solutions, key=lambda item: (item["sla_risk_score"], item["travel_time_min"], item["co2_kg"]))
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     compliant = all(item["sla_risk_score"] < 70 for item in pareto)
     return _label_solutions(pareto), elapsed_ms, compliant

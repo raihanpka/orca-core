@@ -11,6 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { API_BASE, API_TOKEN } from "@/lib/api"
 
+function toTitleCase(str: string) {
+  return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
 export default function NewShipmentPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -130,7 +134,9 @@ export default function NewShipmentPage() {
                 <Label className="flex items-center gap-2"><MapPinIcon className="w-4 h-4 text-blue-500" /> Origin Hub</Label>
                 <Select value={formData.origin_hub_id} onValueChange={(v) => v && setFormData({...formData, origin_hub_id: v})}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Origin" />
+                    <SelectValue placeholder="Select Origin">
+                      {formData.origin_hub_id ? toTitleCase(formData.origin_hub_id) : "Select Origin"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="hub_jakarta_selatan">Hub Jakarta Selatan</SelectItem>
@@ -159,10 +165,12 @@ export default function NewShipmentPage() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><TruckIcon className="w-4 h-4 text-amber-500" /> Vehicle Type</Label>
                 <Select value={formData.vehicle_type} onValueChange={(v) => v && setFormData({...formData, vehicle_type: v})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Vehicle" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Vehicle">
+                      {formData.vehicle_type ? toTitleCase(formData.vehicle_type) : "Select Vehicle"}
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-full">
                     <SelectItem value="van_diesel">Diesel Van (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_lt35t">Light Truck (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_35_75t">Medium Truck (3.5 - 7.5t)</SelectItem>

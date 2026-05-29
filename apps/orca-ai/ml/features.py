@@ -61,7 +61,7 @@ def build_feature_vector(row: dict[str, Any], label_encoder: Any | None = None) 
         "hour_of_day_sin": math.sin(2 * math.pi * hour / 24),
         "hour_of_day_cos": math.cos(2 * math.pi * hour / 24),
         "hub_zone_encoded": encode_hub_zone(hub_zone, label_encoder),
-        "weather_severity_score": float(row.get("weather_severity_score") or 0.0),  # TODO: BMKG integration
+        "weather_severity_score": float(row.get("weather_severity_score") or 0.0),
         "historical_hub_delay_rate": float(row.get("historical_hub_delay_rate") or 0.0),
         "historical_driver_rate": float(row.get("historical_driver_rate") or 1.0),
         "item_count": int(row.get("item_count") or 1),
