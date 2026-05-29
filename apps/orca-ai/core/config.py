@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     database_url: str = "postgresql://orca:orca_pass@postgres:5432/orca_db"
-    redis_url: str = "redis://redis:6379"
+    redis_url: str = "redis://redis:6380"
     prediction_cache_ttl_seconds: int = 900
     internal_api_token: str = "dev-internal-token"
     public_api_token: str = "dev-public-token"
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     fonnte_api_key: str = ""
     fonnte_api_url: str = "https://api.fonnte.com/send"
     alert_recipient_phone: str = ""
-    osmnx_graph_path: str = "../../data/processed/osmnx/west_java.graphml"
+    osmnx_graph_path: str = "../../data/processed/osmnx/jabodetabek.graphml"
     osmnx_place_name: str = "West Java, Indonesia"
     osmnx_enable_download: bool = False
 

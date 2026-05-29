@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
 from functools import lru_cache
 from pathlib import Path
 
@@ -38,8 +39,10 @@ class RoadNetworkProvider:
         self._geometry_cache: dict[tuple[Coordinate, Coordinate], list[list[float]]] = {}
         self._fallback_reported = False
         self.last_source = "haversine_fallback"
+        # Opt #5: prevent race condition when multiple async tasks trigger load simultaneously.
+        self._load_lock = threading.Lock()
 
-    def distance_km(self, a: Coordinate, b: Coordinate) -> float:
+    def distance_km(self, a: Coordinate, b: Coordinate, **kwargs) -> float:
         key = self._cache_key(a, b)
         if key in self._distance_cache:
             return self._distance_cache[key]
@@ -54,7 +57,7 @@ class RoadNetworkProvider:
         self._distance_cache[key] = distance
         return distance
 
-    def route_coordinates(self, points: list[Coordinate]) -> list[list[float]]:
+    def route_coordinates(self, points: list[Coordinate], **kwargs) -> list[list[float]]:
         if len(points) < 2:
             return [[points[0][1], points[0][0]]] if points else []
 
@@ -92,7 +95,8 @@ class RoadNetworkProvider:
             start_node = self._nearest_node(graph, a)
             end_node = self._nearest_node(graph, b)
             path = self._nx.shortest_path(graph, start_node, end_node, weight="length")
-            segment = [[graph.nodes[node]["x"], graph.nodes[node]["y"]] for node in path]
+            # Inject exact start and end coordinates so the UI line connects perfectly to the pins
+            segment = [[a[1], a[0]]] + [[graph.nodes[node]["x"], graph.nodes[node]["y"]] for node in path] + [[b[1], b[0]]]
             self.last_source = "osmnx_west_java"
         except Exception as exc:
             logger.warning("OSMnx route geometry failed, using straight fallback: %s", exc)
@@ -106,36 +110,75 @@ class RoadNetworkProvider:
         return self._ox.distance.nearest_nodes(graph, X=lng, Y=lat)
 
     def _load_graph(self):
+        # Fast path: graph already loaded, no lock needed.
         if self._graph is not None:
             return self._graph
-        if not self.graph_path.exists() and not self.settings.osmnx_enable_download:
-            if not self._fallback_reported:
-                logger.info("OSMnx graph not found at %s, using haversine fallback", self.graph_path)
-                self._fallback_reported = True
+
+        # Opt #5: double-check locking prevents duplicate heavy load when two
+        # requests arrive before the first load finishes.
+        # If we cannot acquire the lock, it means another thread (like warmup) is currently
+        # loading the 1.8GB file. We should not block the request for 3 minutes!
+        # Just fallback to Haversine for now.
+        acquired = self._load_lock.acquire(blocking=False)
+        if not acquired:
+            logger.info("Graph is currently loading in another thread. Fallback to haversine for this request.")
             return None
+            
         try:
-            import networkx as nx
-            import osmnx as ox
-        except Exception as exc:
-            logger.warning("OSMnx unavailable, using haversine fallback: %s", exc)
-            return None
+            if self._graph is not None:  # Re-check inside lock
+                return self._graph
 
-        self._ox = ox
-        self._nx = nx
-        if self.graph_path.exists():
-            self._graph = ox.load_graphml(self.graph_path)
-            logger.info("Loaded OSMnx graph from %s", self.graph_path)
+            try:
+                import networkx as nx
+                import osmnx as ox
+                self._ox = ox
+                self._nx = nx
+            except Exception as exc:
+                logger.warning("OSMnx unavailable, using haversine fallback: %s", exc)
+                return None
+
+            if not self.graph_path.exists() and not self.settings.osmnx_enable_download:
+                if not self._fallback_reported:
+                    logger.info(
+                        "OSMnx graph not found at %s, using haversine fallback", self.graph_path
+                    )
+                    self._fallback_reported = True
+                return None
+            self._nx = nx
+            if self.graph_path.exists():
+                try:
+                    import os
+                    import pickle
+                    pkl_path = str(self.graph_path).replace(".graphml", ".pkl")
+                    
+                    if os.path.exists(pkl_path):
+                        logger.info("Loading pickled OSMnx graph from %s", pkl_path)
+                        with open(pkl_path, "rb") as f:
+                            self._graph = pickle.load(f)
+                        return self._graph
+
+                    logger.warning(
+                        "Pickle file %s not found. Loading 1.8GB GraphML directly causes OOM. "
+                        "Please run pickle_graph.py locally first. Falling back to haversine.",
+                        pkl_path
+                    )
+                    return None
+                except Exception as exc:
+                    logger.warning("Failed to load OSMnx graph (Parse error): %s", exc)
+                    return None
+            self.graph_path.parent.mkdir(parents=True, exist_ok=True)
+            self._graph = ox.graph_from_place(
+                self.settings.osmnx_place_name,
+                network_type="drive",
+                simplify=True,
+            )
+            ox.save_graphml(self._graph, self.graph_path)
+            logger.info(
+                "Downloaded OSMnx graph for %s to %s", self.settings.osmnx_place_name, self.graph_path
+            )
             return self._graph
-
-        self.graph_path.parent.mkdir(parents=True, exist_ok=True)
-        self._graph = ox.graph_from_place(
-            self.settings.osmnx_place_name,
-            network_type="drive",
-            simplify=True,
-        )
-        ox.save_graphml(self._graph, self.graph_path)
-        logger.info("Downloaded OSMnx graph for %s to %s", self.settings.osmnx_place_name, self.graph_path)
-        return self._graph
+        finally:
+            self._load_lock.release()
 
     @staticmethod
     def _cache_key(a: Coordinate, b: Coordinate) -> tuple[Coordinate, Coordinate]:

@@ -1,7 +1,7 @@
 "use client"
 
 import useSWR from "swr"
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis, PieChart, Pie, Cell, Label } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { apiFetch, type CarbonAnalytics, type HubMetric } from "@/lib/api"
 import { formatNumber } from "@/lib/utils"
+
+function toTitleCase(str: string) {
+  return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -84,13 +88,13 @@ function CarbonFootprintTab() {
         <Metric title="Average CO2 per Shipment" value={`${formatNumber(data.avg_co2_per_shipment_kg, 1)} kg`} helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <Card className="shadow-sm border-slate-200">
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card className="shadow-sm border-slate-200 flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Daily CO2 Trend</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={dailyChartConfig} className="h-64 w-full">
+          <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
+            <ChartContainer config={dailyChartConfig} className="h-[250px] w-full">
               <LineChart data={data.by_day}>
                 <CartesianGrid vertical={false} stroke="#E2E8F0" />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} stroke="#94A3B8" />
@@ -102,34 +106,68 @@ function CarbonFootprintTab() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
+        <Card className="shadow-sm border-slate-200 flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Vehicle Breakdown</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col justify-center h-[280px]">
+          <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
             {data.by_vehicle_type.length > 0 ? (
-              <div className="flex items-center gap-6">
-                <div className="w-24 h-24 rounded-full border-[12px] border-[#475569] flex-shrink-0 relative overflow-hidden flex items-center justify-center">
-                  <div className="absolute top-0 right-0 w-1/2 h-full bg-[#1e293b]" />
-                  <div className="w-full h-full bg-white rounded-full z-10 scale-[0.6]" />
+              <div className="flex items-center justify-center gap-8">
+                <div className="w-32 h-32 flex-shrink-0 relative flex items-center justify-center">
+                  <PieChart width={128} height={128}>
+                    <Pie
+                      data={data.by_vehicle_type}
+                      dataKey="shipment_count"
+                      nameKey="vehicle_type"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={42}
+                      outerRadius={60}
+                      stroke="none"
+                    >
+                      {data.by_vehicle_type.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#475569', '#1e293b', '#94a3b8', '#cbd5e1'][index % 4]} />
+                      ))}
+                      <Label
+                        content={({ viewBox }) => {
+                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                            return (
+                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                                <tspan x={viewBox.cx} y={viewBox.cy} className="fill-slate-900 text-lg font-bold">
+                                  {formatNumber(data.by_vehicle_type.reduce((acc, curr) => acc + curr.shipment_count, 0), 0)}
+                                </tspan>
+                                <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 16} className="fill-slate-500 text-[10px] font-medium">
+                                  Total
+                                </tspan>
+                              </text>
+                            )
+                          }
+                        }}
+                      />
+                    </Pie>
+                  </PieChart>
                 </div>
                 <div className="flex-1 space-y-4">
-                  {data.by_vehicle_type.map((item, i) => (
-                    <div key={item.vehicle_type} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-medium">
-                        <span>{item.vehicle_type}: {Math.round(item.shipment_count / data.by_vehicle_type.reduce((acc, curr) => acc + curr.shipment_count, 0) * 100)}% — {formatNumber(item.co2_kg, 1)} kg</span>
+                  {data.by_vehicle_type.map((item, i) => {
+                    const totalShipments = data.by_vehicle_type.reduce((acc, curr) => acc + curr.shipment_count, 0) || 1
+                    const percent = Math.round((item.shipment_count / totalShipments) * 100)
+                    return (
+                      <div key={item.vehicle_type} className="space-y-1.5">
+                        <div className="flex justify-between text-xs font-medium text-slate-700">
+                          <span className="capitalize">{toTitleCase(item.vehicle_type)}: {percent}% — {formatNumber(item.co2_kg, 1)} kg</span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full" 
+                            style={{
+                              width: `${percent}%`,
+                              backgroundColor: i === 0 ? '#475569' : i === 1 ? '#1e293b' : '#94a3b8'
+                            }} 
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full rounded-full" 
-                          style={{
-                            width: `${Math.round(item.shipment_count / data.by_vehicle_type.reduce((acc, curr) => acc + curr.shipment_count, 0) * 100)}%`,
-                            backgroundColor: i === 0 ? '#0f172a' : i === 1 ? '#64748b' : '#cbd5e1'
-                          }} 
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ) : (
@@ -151,7 +189,7 @@ function CarbonFootprintTab() {
           <TableBody>
             {data.by_vehicle_type.map((item) => (
               <TableRow key={item.vehicle_type} className="border-slate-200">
-                <TableCell className="font-medium text-slate-900">{item.vehicle_type}</TableCell>
+                <TableCell className="font-medium text-slate-900">{toTitleCase(item.vehicle_type)}</TableCell>
                 <TableCell>{formatNumber(item.shipment_count, 0)}</TableCell>
                 <TableCell>{formatNumber(item.co2_kg, 1)} kg</TableCell>
               </TableRow>
@@ -167,22 +205,20 @@ function CarbonFootprintTab() {
 }
 
 function HubHealthTab() {
-  const {data: hubs = []} = useSWR<HubMetric[]>("/hubs/health", apiFetch, {
+  const {data: hubsResponse = {hubs: []}} = useSWR<{hubs: HubMetric[]}>("/analytics/hubs", apiFetch, {
     refreshInterval: 15000,
-    fallbackData: [
-      { hub_id: "HUB-042", hub_name: "Jakarta West", current_inbound_volume: 156, avg_dwell_time_min: 6.8 * 60, delay_rate_7d: 0.1, congestion_level: "high", alert: true },
-      { hub_id: "HUB-015", hub_name: "Surabaya Port", current_inbound_volume: 89, avg_dwell_time_min: 5.2 * 60, delay_rate_7d: 0.1, congestion_level: "high", alert: true },
-      { hub_id: "HUB-009", hub_name: "Bekasi Central", current_inbound_volume: 112, avg_dwell_time_min: 4.1 * 60, delay_rate_7d: 0.1, congestion_level: "medium", alert: false },
-      { hub_id: "HUB-021", hub_name: "Medan Hub", current_inbound_volume: 45, avg_dwell_time_min: 2.4 * 60, delay_rate_7d: 0.1, congestion_level: "low", alert: false },
-    ]
   })
+  const hubs = hubsResponse?.hubs ?? [];
+  const totalHubs = hubs.length;
+  const highCongestion = hubs.filter(h => h.congestion_level === 'high').length;
+  const avgDwell = hubs.length ? (hubs.reduce((acc, curr) => acc + curr.avg_dwell_time_min, 0) / hubs.length / 60).toFixed(1) : 0;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 md:grid-cols-3">
-        <Metric title="Total Active Hubs" value="24" helper="" />
-        <Metric title="High Congestion Hubs" value="3" helper="" />
-        <Metric title="Network Avg Dwell Time" value="4.2 hrs" helper="" />
+        <Metric title="Total Active Hubs" value={totalHubs.toString()} helper="" />
+        <Metric title="High Congestion Hubs" value={highCongestion.toString()} helper="" />
+        <Metric title="Network Avg Dwell Time" value={`${avgDwell} hrs`} helper="" />
       </div>
 
       <Card className="shadow-sm border-slate-200">
@@ -196,30 +232,30 @@ function HubHealthTab() {
               <TableHead className="font-semibold text-slate-500 uppercase">Location</TableHead>
               <TableHead className="font-semibold text-slate-500 uppercase text-right">Inbound Count</TableHead>
               <TableHead className="font-semibold text-slate-500 uppercase text-right">Avg Dwell Time</TableHead>
-              <TableHead className="font-semibold text-slate-500 uppercase text-right">Congestion Score</TableHead>
               <TableHead className="font-semibold text-slate-500 uppercase">Status</TableHead>
-              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {hubs.map((hub) => {
-              const score = hub.congestion_level === "high" ? Math.floor(Math.random() * 20) + 75 : hub.congestion_level === "medium" ? Math.floor(Math.random() * 20) + 40 : Math.floor(Math.random() * 20) + 10
-              return (
+            {hubs.map((hub) => (
                 <TableRow key={hub.hub_id} className="border-slate-200">
                   <TableCell className="font-medium text-slate-600">{hub.hub_id}</TableCell>
                   <TableCell className="text-slate-900">{hub.hub_name}</TableCell>
                   <TableCell className="text-right">{hub.current_inbound_volume}</TableCell>
                   <TableCell className="text-right">{(hub.avg_dwell_time_min / 60).toFixed(1)} hrs</TableCell>
-                  <TableCell className="text-right">{score}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-md text-xs font-semibold border ${hub.congestion_level === 'high' ? 'bg-slate-200 border-slate-400 text-slate-700' : hub.congestion_level === 'medium' ? 'bg-slate-50 border-slate-300 text-slate-600' : 'bg-transparent border-dashed border-slate-300 text-slate-400'}`}>
                       {hub.congestion_level.toUpperCase()}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right text-slate-400">›</TableCell>
                 </TableRow>
-              )
-            })}
+            ))}
+            {hubs.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                  No active hubs found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Card>

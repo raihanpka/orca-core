@@ -22,6 +22,7 @@ export type Point = {
 type RouteMapProps = {
   title?: string
   points: Point[]
+  routeLine?: [number, number][]
   className?: string
 }
 
@@ -32,16 +33,13 @@ function markerClassName(tone?: Point["tone"]) {
   return {background: "#171717", border: "#e5e5e5", color: "#fff"}
 }
 
-export function RouteMap({title = "Map Preview", points, className}: RouteMapProps) {
+export function RouteMap({points, routeLine, className, focusPoint}: RouteMapProps & {focusPoint?: [number, number] | null}) {
   const center = points[0]?.coordinates ?? ([106.8272, -6.1754] as [number, number])
-  const routeCoordinates = points.map((point) => [point.coordinates[1], point.coordinates[0]] as [number, number])
+  const extractedLine = points.map((point) => [point.coordinates[1], point.coordinates[0]] as [number, number])
+  const finalLine = routeLine ? routeLine.map(coord => [coord[1], coord[0]] as [number, number]) : null
 
   return (
-    <div className={cn("flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-xs", className)}>
-      <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
-        <div className="text-sm font-medium">{title}</div>
-        <div className="text-xs text-muted-foreground">React Leaflet OSM</div>
-      </div>
+    <div className={cn("flex flex-col overflow-hidden bg-card text-card-foreground shadow-xs", className)}>
       <div className="relative flex-1 min-h-0">
         <MapContainer
           center={[center[1], center[0]]}
@@ -54,9 +52,9 @@ export function RouteMap({title = "Map Preview", points, className}: RouteMapPro
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <FitRouteBounds coordinates={routeCoordinates} />
-          {routeCoordinates.length > 1 ? (
-            <Polyline positions={routeCoordinates} pathOptions={{color: "#171717", weight: 4, opacity: 0.9}} />
+          <FitRouteBounds coordinates={finalLine || extractedLine} focusPoint={focusPoint} />
+          {finalLine && finalLine.length > 1 ? (
+            <Polyline positions={finalLine} pathOptions={{color: "#171717", weight: 4, opacity: 0.9}} />
           ) : null}
           {points.map((point, index) => (
             <Marker
@@ -75,12 +73,16 @@ export function RouteMap({title = "Map Preview", points, className}: RouteMapPro
   )
 }
 
-function FitRouteBounds({coordinates}: {coordinates: [number, number][]}) {
+function FitRouteBounds({coordinates, focusPoint}: {coordinates: [number, number][], focusPoint?: [number, number] | null}) {
   const map = useMap()
   useEffect(() => {
+    if (focusPoint) {
+      map.flyTo([focusPoint[1], focusPoint[0]], 14, { duration: 1.5 })
+      return
+    }
     if (coordinates.length < 2) return
-    map.fitBounds(L.latLngBounds(coordinates), {padding: [28, 28], maxZoom: 12})
-  }, [coordinates, map])
+    map.fitBounds(L.latLngBounds(coordinates), {padding: [40, 40], maxZoom: 13, duration: 1.5})
+  }, [coordinates, focusPoint, map])
   return null
 }
 

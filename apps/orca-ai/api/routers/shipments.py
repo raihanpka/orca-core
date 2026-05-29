@@ -2,9 +2,12 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Query, Request
+import uuid
+from fastapi import APIRouter, Query, Request, HTTPException
+from api.schemas.shipment import CreateShipmentRequest
 
 from api.schemas.common import ok
+from core.config import get_settings
 from db.queries import (
     bulk_insert_carbon_records,
     bulk_insert_prediction_cache,
@@ -61,6 +64,8 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
         request.app.state.label_encoder,
         request.app.state.model_version,
     )
+    # Opt #7: read amplifier once per batch instead of per-row get_settings() calls.
+    amplifier = get_settings().sla_risk_amplifier
     fallback_by_id = {}
     prediction_records = []
     carbon_records = []
@@ -69,7 +74,11 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
             continue
         features = _features_from_shipment(row)
         prediction = predictor.predict(features)
-        risk_score, _ = compute_sla_risk(prediction["delay_probability"], features["remaining_hours_to_sla"])
+        risk_score, _ = compute_sla_risk(
+            prediction["delay_probability"],
+            features["remaining_hours_to_sla"],
+            amplifier=amplifier,
+        )
         shipment_id = str(row["id"])
         payload = {
             "shipment_id": shipment_id,
@@ -113,13 +122,18 @@ def _fallback_contributions(features: dict) -> list[dict]:
     return sorted(contributions, key=lambda item: abs(item["contribution"]), reverse=True)[:5]
 
 
-def _shap_contributions(model, label_encoder, features: dict) -> list[dict]:
+def _shap_contributions(explainer: object | None, model: object, label_encoder: object, features: dict) -> list[dict]:
+    """Compute SHAP feature contributions using the pre-built cached explainer.
+
+    Falls back to the rule-based _fallback_contributions if the explainer is
+    unavailable or SHAP raises an unexpected error.
+    """
+    if explainer is None:
+        return _fallback_contributions(features)
     try:
         import shap
-
         vector = build_feature_vector(features, label_encoder)
         row = pd.DataFrame([[vector[column] for column in FEATURE_COLUMNS]], columns=FEATURE_COLUMNS)
-        explainer = shap.Explainer(model.predict_proba, row)
         values = explainer(row)
         shap_values = values.values
         if shap_values.ndim == 3:
@@ -137,6 +151,66 @@ def _shap_contributions(model, label_encoder, features: dict) -> list[dict]:
         ]
     except Exception:
         return _fallback_contributions(features)
+
+
+HUB_COORDS = {
+    "hub_jakarta_selatan": (-6.2610, 106.8060),
+    "hub_jakarta_utara": (-6.1420, 106.8900),
+    "hub_bogor": (-6.5960, 106.7970),
+    "hub_depok": (-6.4025, 106.7942)
+}
+
+@router.post("/", response_model=dict)
+async def create_shipment(req: CreateShipmentRequest, request: Request):
+    now = datetime.now(timezone.utc)
+    
+    if req.sla_deadline.replace(tzinfo=timezone.utc) < now:
+        raise HTTPException(status_code=400, detail="SLA deadline cannot be in the past")
+        
+    hub_coords = HUB_COORDS.get(req.origin_hub_id)
+    if not hub_coords:
+        raise HTTPException(status_code=400, detail="Invalid origin_hub_id")
+        
+    import asyncio
+    # Automatic distance calculation using graphml/pkl
+    provider = request.app.state.road_provider
+    distance_km = await asyncio.to_thread(provider.distance_km, hub_coords, (req.customer_lat, req.customer_lng))
+    
+    shipment_id = uuid.uuid4()
+    ext_id = req.external_id or f"MNL-{shipment_id.hex[:8]}"
+    
+    async with request.app.state.db_pool.acquire() as conn:
+        # Insert shipment
+        await conn.execute(
+            """
+            INSERT INTO shipments (
+              id, external_id, origin_hub_id, destination_zone, 
+              customer_lat, customer_lng, vehicle_type,
+              load_weight_kg, item_count, sla_deadline, dispatched_at, status, distance_km
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'in_transit', $12)
+            """,
+            shipment_id, ext_id, req.origin_hub_id,
+            req.destination_zone, req.customer_lat, req.customer_lng, req.vehicle_type,
+            req.load_weight_kg, req.item_count, req.sla_deadline, now, distance_km
+        )
+        
+    # Trigger prediction caching automatically for this manual shipment
+    row = {
+        "id": shipment_id,
+        "dispatched_at": now,
+        "created_at": now,
+        "sla_deadline": req.sla_deadline,
+        "distance_km": distance_km,
+        "origin_hub_id": req.origin_hub_id,
+        "item_count": req.item_count,
+        "load_weight_kg": req.load_weight_kg,
+        "vehicle_type": req.vehicle_type,
+        "delay_probability": None
+    }
+    await _batch_fallback_predictions(request, [row])
+    
+    return ok({"shipment_id": str(shipment_id), "distance_km": distance_km, "message": "Shipment created successfully"})
 
 
 @router.get("/active")
@@ -206,7 +280,16 @@ async def shipment_prediction(shipment_id: str, request: Request):
             }
         )
     features = prediction["features_json"] or {}
-    shap_values = _shap_contributions(request.app.state.delay_model, request.app.state.label_encoder, features) if features else []
+    shap_values = (
+        _shap_contributions(
+            request.app.state.shap_explainer,
+            request.app.state.delay_model,
+            request.app.state.label_encoder,
+            features,
+        )
+        if features
+        else []
+    )
     risk = float(prediction["sla_risk_score"])
     return ok(
         {

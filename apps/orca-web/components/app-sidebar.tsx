@@ -27,6 +27,7 @@ import {
   CircleHelpIcon,
   SearchIcon,
   CommandIcon,
+  PlusCircleIcon,
 } from "lucide-react"
 
 const data = {
@@ -37,9 +38,14 @@ const data = {
   },
   navMain: [
     {
-      title: "Operations",
+      title: "Operations (Home)",
       url: "/",
       icon: <LayoutDashboardIcon />,
+    },
+    {
+      title: "Add Shipment",
+      url: "/shipments/new",
+      icon: <PlusCircleIcon />,
     },
     {
       title: "Optimizer",

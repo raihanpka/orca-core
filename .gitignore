@@ -30,10 +30,20 @@ apps/orca-ai/orca_ai.egg-info/
 !data/raw/olist/.gitkeep
 !data/raw/olist/README.md
 !data/processed/.gitkeep
+!data/processed/model.pkl
+!data/processed/model.lgbm
+!data/processed/hub_zone_encoder.pkl
+!data/processed/model_meta.json
+!data/processed/feature_metadata.json
 !data/processed/osmnx/
 !data/processed/osmnx/.gitkeep
 mlruns/*
 !mlruns/.gitkeep
+
+# Large map files
+*.osm
+*.pbf
+*.graphml
 
 ### NextJS ###
 # dependencies

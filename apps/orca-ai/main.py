@@ -1,3 +1,5 @@
+import asyncio
+import concurrent.futures
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -12,14 +14,12 @@ from api.schemas.common import Envelope
 from core.config import get_settings
 from core.mlflow_client import load_production_model
 from core.security import validate_public_token
+from core.subscriber import run_subscriber
 from db.connection import create_pool
+from ml.osmnx_provider import get_road_network_provider
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("orca-ai")
-
-
-import asyncio
-from core.subscriber import run_subscriber
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,19 +29,60 @@ async def lifespan(app: FastAPI):
     app.state.label_encoder = encoder
     app.state.model_version = version
     app.state.db_pool = await create_pool(settings.database_url)
+
+    # Opt #4: Pre-build SHAP Explainer once at startup so it is not
+    # reconstructed on every /shipments/{id}/prediction call.
+    app.state.shap_explainer = None
+    if model is not None and not hasattr(model, "version") or getattr(model, "version", "") != "fallback-v1":
+        try:
+            import pandas as pd
+            import shap
+            from ml.features import FEATURE_COLUMNS
+            bg = pd.DataFrame([[0.0] * len(FEATURE_COLUMNS)], columns=FEATURE_COLUMNS)
+            app.state.shap_explainer = shap.Explainer(model.predict_proba, bg)
+            logger.info("SHAP Explainer initialised and cached.")
+        except Exception as exc:
+            logger.warning("SHAP Explainer init failed (non-fatal): %s", exc)
+
+    # Run DB schema migration on startup
+    try:
+        import os
+        schema_path = os.path.join(os.path.dirname(__file__), "../../infra/init-db/01_schema.sql")
+        if os.path.exists(schema_path):
+            with open(schema_path, "r") as f:
+                schema_sql = f.read()
+            async with app.state.db_pool.acquire() as conn:
+                await conn.execute(schema_sql)
+            logger.info("Database schema migration completed")
+    except Exception as exc:
+        logger.error("Failed to run schema migration: %s", exc)
+
     try:
         app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         await app.state.redis.ping()
         logger.info("Redis connected")
-        
-        # Start subscriber
+
+        # Start pub/sub subscriber
         app.state.subscriber_task = asyncio.create_task(run_subscriber(app))
     except Exception as exc:
         app.state.redis = None
         logger.warning("Redis unavailable; cache disabled: %s", exc)
-    
+
+    # Opt #3: Warm up the OSMnx graph in a background thread so the first
+    # /optimize/route request does not block waiting for a 1.8 GB file load.
+    async def _warmup_graph():
+        loop = asyncio.get_event_loop()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="osmnx-warmup") as pool:
+                await loop.run_in_executor(pool, get_road_network_provider()._load_graph)
+            logger.info("OSMnx graph warmup complete.")
+        except Exception as exc:
+            logger.warning("OSMnx graph warmup failed (non-fatal, haversine fallback active): %s", exc)
+
+    asyncio.create_task(_warmup_graph())
+
     yield
-    
+
     if hasattr(app.state, "subscriber_task"):
         app.state.subscriber_task.cancel()
     if app.state.db_pool is not None:

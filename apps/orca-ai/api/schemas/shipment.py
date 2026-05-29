@@ -19,6 +19,17 @@ class ShipmentSummary(BaseModel):
     intervention_recommended: str | None = None
 
 
+class CreateShipmentRequest(BaseModel):
+    origin_hub_id: str
+    destination_zone: str
+    customer_lat: float
+    customer_lng: float
+    vehicle_type: str
+    load_weight_kg: float
+    item_count: int
+    sla_deadline: datetime
+    external_id: str | None = None
+
 class ActiveShipmentsResponse(BaseModel):
     shipments: list[ShipmentSummary]
     next_cursor: str | None = None

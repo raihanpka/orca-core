@@ -2,7 +2,7 @@
 
 Optimized Route and Carbon Analytics
 
-# **1\. Ringkasan Eksekutif**
+# **1. Ringkasan Eksekutif**
 
 ORCA adalah platform logistics intelligence untuk operasi logistik skala Blibli. Platform ini membantu tim operasional untuk:
 
@@ -20,13 +20,13 @@ MVP dibangun sebagai operational decision-support system, bukan sebagai full Tra
 
 Pada rilis pertama, ORCA memprioritaskan kesiapan backend dan API. Tim UI/UX dapat menggunakan PRD ini untuk mendesain dashboard screens, table states, forms, charts, badges, alert flows, dan shipment detail views. Tim ML dapat menggunakan PRD ini untuk memahami di mana output model harus muncul dan hasil produk apa yang harus didukung model.
 
-# **2\. Konteks Produk**
+# **2. Konteks Produk**
 
 Jaringan logistik Indonesia menghadapi tekanan dari meningkatnya permintaan e-commerce, biaya logistik yang tinggi, bottleneck infrastruktur, kemacetan perkotaan, dan ekspektasi keberlanjutan (sustainability) yang semakin tinggi. Tim pengiriman sering harus mengoordinasikan gudang, fulfillment hub, mitra pengiriman, dan sumber daya last-mile sembari memenuhi komitmen SLA Same-Day dan Next-Day.
 
 Saat ini, banyak keputusan logistik bersifat reaktif. Operator mengetahui bahwa sebuah shipment berisiko setelah dwell time meningkat, kondisi rute memburuk, atau pengiriman melewati service window yang direncanakan. ORCA mengatasi kesenjangan ini dengan menyediakan predictive risk visibility dan rekomendasi route tradeoff.
 
-# **3\. Problem Statement**
+# **3. Problem Statement**
 
 Sektor logistik Indonesia menghadapi kompleksitas operasional yang terus meningkat akibat tingginya permintaan e-commerce, bottleneck infrastruktur, dan tekanan sustainability. Kondisi ini menciptakan keterlambatan pengiriman, turunnya kepatuhan SLA, utilisasi armada yang tidak efisien, dan emisi yang lebih tinggi di seluruh jaringan pengiriman multi-hub dan last-mile.
 
@@ -34,7 +34,7 @@ Validasi riset mendukung arah masalah ini:
 
 | Fakta | Detail |
 | :---- | :---- |
-| Ekonomi digital Indonesia (GMV 2024\) | Sekitar USD 90 miliar, dengan e-commerce sekitar USD 65 miliar (sumber: e-Conomy SEA) |
+| Ekonomi digital Indonesia (GMV 2024. | Sekitar USD 90 miliar, dengan e-commerce sekitar USD 65 miliar (sumber: e-Conomy SEA) |
 | Biaya logistik | Sekitar 14,3% dari PDB (sumber: Bappenas dan media). Catatan: riset makro historis menunjukkan angka yang lebih tinggi sekitar 23% |
 | World Bank LPI 2023 | Indonesia peringkat 61 secara keseluruhan, peringkat 59 untuk timeliness |
 | Kerugian kemacetan Jakarta | Sekitar USD 6,1 miliar per tahun (sumber: media) |
@@ -42,7 +42,7 @@ Validasi riset mendukung arah masalah ini:
 
 Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar adalah tidak adanya logistics intelligence yang bersifat predictive, carbon-aware, dan operator-friendly, yang membantu tim bertindak sebelum risiko SLA menjadi kegagalan yang terlihat oleh pelanggan.
 
-# **4\. Kesesuaian Enterprise**
+# **4. Kesesuaian Enterprise**
 
 | Kebutuhan Enterprise | Respons ORCA |
 | :---- | :---- |
@@ -55,7 +55,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Integrasi yang scalable | REST API, SWR polling event stream, Redis event ingestion |
 | Cross-functional alignment | Kontrak API yang stabil untuk backend, web, ML, dan product design |
 
-# **5\. Goals**
+# **5. Goals**
 
 | Goal | Success Metric | MVP Target |
 | :---- | :---- | :---- |
@@ -66,7 +66,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Dukung kesiapan UI mockup | Tim product memiliki screen map, data states, dan persyaratan komponen | PRD mencakup persyaratan per screen |
 | Lindungi public API | REST API yang diekspos menolak panggilan tanpa token | X-API-Token wajib kecuali health dan docs |
 
-# **6\. Non-Goals (Di Luar Cakupan)**
+# **6. Non-Goals (Di Luar Cakupan)**
 
 | Non-Goal | Alasan |
 | :---- | :---- |
@@ -80,7 +80,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 
 # 
 
-# **7\. Target Pengguna**
+# **7. Target Pengguna**
 
 | Pengguna | Pekerjaan Utama | Pain Point | Kebutuhan Produk |
 | :---- | :---- | :---- | :---- |
@@ -92,7 +92,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Tim ML | Melatih model delay produksi | Butuh ekspektasi fitur dan output | Seksi ML handoff dan acceptance criteria |
 | UI/UX Designer | Membuat mockup produk | Butuh screens, states, dan user intent yang jelas | Screen requirements, information hierarchy, data states |
 
-# **8\. User Personas**
+# **8. User Personas**
 
 ## **8.1 Operations Manager**
 
@@ -124,7 +124,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Keputusan kunci | Tipe kendaraan, tanggal, atau pola rute mana yang berkontribusi CO2 terbesar |
 | Kondisi sukses | Dapat mengekspor atau screenshot ringkasan carbon yang jelas untuk pelaporan |
 
-# **9\. Key User Journeys**
+# **9. Key User Journeys**
 
 | Journey | Trigger | Langkah | Hasil yang Diharapkan |
 | :---- | :---- | :---- | :---- |
@@ -134,7 +134,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Review carbon | Sustainability officer membuka analytics | Review total CO2, grafik harian, vehicle breakdown | Pola emisi terlihat jelas |
 | Terima live alert | Engine mendeteksi high risk | Alert muncul di list atau SWR polling banner | Operator bereaksi tanpa refresh manual |
 
-# **10\. Scope**
+# **10. Scope**
 
 ## **10.1 In Scope**
 
@@ -163,7 +163,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Customer-facing tracking | Halaman shipment pelanggan yang publik |
 | Model retraining automation | Scheduled pipeline dan model governance |
 
-# **11\. Asumsi**
+# **11. Asumsi**
 
 | Asumsi | Dampak jika Salah | Rencana Validasi |
 | :---- | :---- | :---- |
@@ -172,7 +172,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Estimasi carbon dapat diterima untuk lapisan visibilitas pertama | Tim ESG mungkin membutuhkan metodologi yang lebih ketat | Tandai sumber faktor GLEC dan metode perhitungan dengan jelas |
 | UI akan menjadi web dashboard terlebih dahulu | Kebutuhan mobile mungkin terlewat | Pertahankan responsive layout tapi prioritaskan desktop operations |
 
-# **12\. Constraints**
+# **12. Constraints**
 
 | Constraint | Detail |
 | :---- | :---- |
@@ -184,7 +184,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Tooling | Workflow Python dan ML menggunakan uv, frontend menggunakan pnpm, engine menggunakan Python 3.11 |
 | UI design | Mockup harus dapat digunakan untuk review enterprise dashboard, bukan landing page marketing |
 
-# **13\. Functional Requirements**
+# **13. Functional Requirements**
 
 ## **13.1 Active Shipment Dashboard**
 
@@ -255,7 +255,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | FR-029 | Cegah duplicate alerts | Must | Shipment yang sama tidak di-alert berulang dalam dedupe window |
 | FR-030 | Simpan alert tanpa provider credentials | Must | Kredensial Fonnte yang hilang tidak merusak pembuatan alert record |
 
-# **14\. Non-Functional Requirements**
+# **14. Non-Functional Requirements**
 
 | Kategori | Requirement | MVP Target |
 | :---- | :---- | :---- |
@@ -268,7 +268,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | UX readiness | Respons API harus cukup stabil untuk mockup | Endpoint summary dan data objects terdokumentasi |
 | Accessibility | Dashboard harus terbaca tanpa mengandalkan warna saja | Badge membutuhkan label teks dan dukungan icon di UI |
 
-# **15\. Ringkasan Data Model**
+# **15. Ringkasan Data Model**
 
 | Entity | Tujuan | Key Fields untuk UI |
 | :---- | :---- | :---- |
@@ -279,7 +279,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Hub metric | Kesehatan hub lokal | hub id, inbound volume, dwell time, congestion score |
 | Route alternative | Opsi yang dioptimasi | stop order, ETA, distance, cost, CO2, SLA risk, label |
 
-# **16\. Ringkasan API Contract**
+# **16. Ringkasan API Contract**
 
 | Endpoint | Method | Access | Penggunaan UI |
 | :---- | :---- | :---- | :---- |
@@ -293,7 +293,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | /alerts/dispatch | POST | Internal token | Engine alert workflow |
 | /internal/predict | POST | Internal token | Engine prediction workflow |
 
-# **17\. UI Information Architecture**
+# **17. UI Information Architecture**
 
 | Navigation Item | Screen | Pertanyaan Utama yang Dijawab |
 | :---- | :---- | :---- |
@@ -304,7 +304,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 
 (Catatan: UI difokuskan pada 4 halaman utama untuk MVP: Dashboard, Hubs, Route Optimizer, dan Carbon Analytics. Layar tambahan seperti Shipment Detail view atau Alert view khusus ditiadakan/disederhanakan untuk MVP.)
 
-# **18\. Screen Requirements untuk UI/UX**
+# **18. Screen Requirements untuk UI/UX**
 
 ## **18.1 Dashboard**
 
@@ -371,7 +371,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Alert detail | Message, dedupe state, provider result | Membantu debugging |
 | Filter | Status dan risk level | Berguna untuk operations review |
 
-# **19\. UI States**
+# **19. UI States**
 
 | State | Requirement |
 | :---- | :---- |
@@ -383,7 +383,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | High risk | Gunakan label teks, icon, dan prioritas visual yang kuat |
 | Offline API polling | Tampilkan indikator error network/terputus |
 
-# **20\. Design Principles**
+# **20. Design Principles**
 
 | Prinsip | Detail |
 | :---- | :---- |
@@ -395,7 +395,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Trustworthy data | Tampilkan model version, prediction time, dan missing data state |
 | Accessible status | Jangan hanya mengandalkan merah, kuning, dan hijau |
 
-# **21\. Contoh UI**
+# **21. Contoh UI**
 
 | Konteks | Copy |
 | :---- | :---- |
@@ -408,12 +408,12 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Heading hasil rute | Route Alternatives |
 | Catatan metode carbon | CO2 is estimated from distance, load, and vehicle emission factor |
 
-# **22\. Security dan Network Requirements**
+# **22. Security dan Network Requirements**
 
 | Area | Requirement |
 | :---- | :---- |
 | REST API | Diekspos untuk Postman dan browser testing, tapi dilindungi oleh X-API-Token |
-| Frontend | Menggunakan NEXT\_PUBLIC\_API\_TOKEN untuk akses API MVP |
+| Frontend | Menggunakan NEXT.PUBLIC.API.TOKEN untuk akses API MVP |
 | Internal API | Engine-only routes memerlukan X-Internal-Token |
 | Redis | Hanya internal Docker network, tidak ada host port exposure |
 | PostgreSQL | Hanya internal Docker network, tidak ada host port exposure |
@@ -421,7 +421,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | CORS | Tetap permisif untuk fleksibilitas frontend MVP |
 | Secrets | Hanya root .env, secret nyata tidak boleh di-commit |
 
-# **23\. Data dan Dataset Requirements**
+# **23. Data dan Dataset Requirements**
 
 | Area Dataset | Requirement |
 | :---- | :---- |
@@ -432,21 +432,21 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Simulation | Replay shipment events dari baris fitur yang sudah disiapkan |
 | Internal data (masa depan) | Ganti data proxy publik dengan data operasional yang dianonimkan setelah MVP |
 
-# **24\. ML Handoff Requirements**
+# **24. ML Handoff Requirements**
 
 | Item | Requirement untuk Tim ML |
 | :---- | :---- |
 | Model type | Latih model prediksi keterlambatan yang dikalibrasi; LightGBM baseline dapat diterima |
 | Target | Prediksi delay probability dan SLA risk shipment |
 | Features | Gunakan jarak shipment, timing, rute, hub, vehicle, dan fitur turunan event |
-| Output | delay\_probability, sla\_risk\_score, risk\_level, model\_version |
+| Output | delay.probability, sla.risk.score, risk.level, model.version |
 | Explainability | Hasilkan nilai kontribusi SHAP yang kompatibel dengan shipment detail UI |
 | Calibration | Validasi kalibrasi probabilitas dan risk threshold |
 | Registry | Daftarkan model produksi melalui MLflow saat siap |
 | Evaluation | Laporkan AUC, precision/recall untuk high-risk class, calibration metric, dan confusion matrix |
 | Product test | Konfirmasi bahwa output model menghasilkan ranking yang berguna untuk operations dashboard |
 
-# **25\. Analytics Requirements**
+# **25. Analytics Requirements**
 
 | Metrik | Definisi | Screen |
 | :---- | :---- | :---- |
@@ -458,7 +458,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Hub congestion score | Score dari sinyal dwell dan inbound | Hubs |
 | Alert count | Jumlah alert dalam periode yang dipilih | Alerts |
 
-# **26\. Ringkasan Acceptance Criteria**
+# **26. Ringkasan Acceptance Criteria**
 
 | Area | MVP Acceptance Criteria |
 | :---- | :---- |
@@ -471,7 +471,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Alerts | Alert dispatch terlindungi, idempoten, dan dapat persist tanpa provider credentials |
 | Docs | README dan .docs menjelaskan setup dengan uv, pnpm, Go, root .env, dan lokasi dataset |
 
-# **27\. Risiko dan Mitigasi**
+# **27. Risiko dan Mitigasi**
 
 | Risiko | Dampak | Mitigasi |
 | :---- | :---- | :---- |
@@ -482,7 +482,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Statistik churn konsumen tidak bersumber primer | Klaim proposal bisa dipertanyakan | Gunakan insight reliabilitas yang terverifikasi atau temukan sumber langsung sebelum pitch |
 | Konfigurasi CORS asal memblokir lingkungan non-dev | Frontend mungkin gagal di staging | Pertahankan konfigurasi ALLOWED_ORIGINS yang eksplisit di root .env |
 
-# **28\. Validasi Riset dan Kesenjangan**
+# **28. Validasi Riset dan Kesenjangan**
 
 | Klaim | Status | Keputusan Produk |
 | :---- | :---- | :---- |
@@ -499,7 +499,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 
 # 
 
-# **29\. Open Questions**
+# **29. Open Questions**
 
 | Pertanyaan | Owner | Dibutuhkan Sebelum |
 | :---- | :---- | :---- |

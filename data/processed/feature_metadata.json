@@ -1,0 +1,22 @@
+{
+  "feature_columns": [
+    "distance_km",
+    "estimated_delivery_days",
+    "day_of_week_sin",
+    "day_of_week_cos",
+    "hour_of_day_sin",
+    "hour_of_day_cos",
+    "hub_zone_encoded",
+    "weather_severity_score",
+    "historical_hub_delay_rate",
+    "historical_driver_rate",
+    "item_count",
+    "product_weight_g",
+    "freight_value",
+    "freight_to_price_ratio",
+    "payment_installments",
+    "same_state_delivery"
+  ],
+  "feature_version": "v1",
+  "dataset_version": "olist-v1"
+}

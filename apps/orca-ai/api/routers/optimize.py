@@ -9,6 +9,14 @@ from ml.route_optimizer import optimize_route
 
 router = APIRouter(prefix="/optimize", tags=["optimize"])
 
+@router.get("/vehicles")
+async def vehicles(request: Request):
+    pool = request.app.state.db_pool
+    if not pool:
+        return ok({"vehicles": []})
+    rows = await pool.fetch("SELECT vehicle_type FROM glec_emission_factors")
+    return ok({"vehicles": [row["vehicle_type"] for row in rows]})
+
 
 @router.post("/route")
 async def route(payload: OptimizeRouteRequest, request: Request):
@@ -18,6 +26,7 @@ async def route(payload: OptimizeRouteRequest, request: Request):
         payload.vehicle_type,
         payload.load_weight_kg,
         payload.origin_hub_id,
+        payload.routing_engine,
     )
     pool = request.app.state.db_pool
     if pool is not None:

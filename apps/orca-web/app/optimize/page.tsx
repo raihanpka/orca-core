@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis } from "recharts"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis, Cell } from "recharts"
+import useSWR from "swr"
 
 import { jakartaRoutePoints, type Point } from "@/lib/mock-data"
 import dynamic from "next/dynamic"
@@ -16,14 +17,10 @@ import {
 } from "@/components/ui/chart"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Trash2Icon } from "lucide-react"
 import { apiFetch, type RouteOptimizationResponse } from "@/lib/api"
 import { formatNumber } from "@/lib/utils"
 
@@ -39,18 +36,82 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function OptimizePage() {
-  const [vehicleType, setVehicleType] = useState("van")
+  const { data: vehicleResponse } = useSWR<{vehicles: string[]}>("/optimize/vehicles", apiFetch)
+  const availableVehicles = vehicleResponse?.vehicles ?? ["van_diesel", "truck_lt35t", "truck_gt75t", "scooter_electric"];
+
+  const [vehicleType, setVehicleType] = useState("van_diesel")
+  const [routingEngine, setRoutingEngine] = useState("osmnx")
+  const [originHubId, setOriginHubId] = useState("hub_jakarta_selatan")
+  const [focusPoint, setFocusPoint] = useState<[number, number] | null>(null)
+  const [waypoints, setWaypoints] = useState([
+    { id: "11111111-1111-1111-1111-111111111111", lat: -6.326, lng: 107.143, weight: 8 },
+  ])
+  const availableHubs = [
+    { id: "hub_jakarta_selatan", name: "Hub Jakarta Selatan", lat: -6.283, lng: 106.820 },
+    { id: "hub_jakarta_utara", name: "Hub Jakarta Utara", lat: -6.148, lng: 106.889 },
+    { id: "hub_bogor", name: "Hub Bogor", lat: -6.597, lng: 106.793 },
+    { id: "hub_depok", name: "Hub Depok", lat: -6.402, lng: 106.820 },
+  ]
+  
   const [result, setResult] = useState<RouteOptimizationResponse | null>(null)
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const selectedGeometryPoints = useMemo<Point[]>(() => {
-    const coordinates = result?.pareto_solutions?.[0]?.route_geometry?.coordinates
-    if (!coordinates?.length) return jakartaRoutePoints
-    return coordinates.map((coordinates, index) => ({
-      label: index === 0 ? "Origin" : `Stop ${index}`,
-      coordinates,
-      tone: index === 0 ? "default" : index === 1 ? "high" : index === 2 ? "medium" : "low",
+  const [optimizationGoal, setOptimizationGoal] = useState("lowest_cost")
+  const [error, setError] = useState<string | null>(null)
+
+  const handleAddWaypoint = () => {
+    setWaypoints([...waypoints, {
+      id: crypto.randomUUID(),
+      lat: -6.200, lng: 106.816, weight: 5
+    }])
+  }
+
+  const handleUpdateWaypoint = (id: string, field: "lat"|"lng"|"weight"|"hub", value: number|string) => {
+    setResult(null) // Clear old route when editing points
+    setWaypoints(waypoints.map(w => {
+      if (w.id === id) {
+        if (field === "hub") {
+           const hub = availableHubs.find(h => h.id === value);
+           if (hub) {
+             setFocusPoint([hub.lng, hub.lat])
+             return { ...w, lat: hub.lat, lng: hub.lng };
+           }
+        }
+        return { ...w, [field]: value }
+      }
+      return w
     }))
-  }, [result])
+  }
+
+  const handleRemoveWaypoint = (id: string) => {
+    if (waypoints.length <= 1) return; // minimal 1 stop
+    setWaypoints(waypoints.filter(w => w.id !== id))
+  }
+  
+  // Opt #8: Prevent double API call in React Strict Mode (dev only). React
+  // intentionally invokes effects twice in development to surface cleanup issues.
+  const hasFetchedRef = useRef(false)
+  useEffect(() => {
+    if (hasFetchedRef.current) return
+    hasFetchedRef.current = true
+    submitRoute()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const selectedGeometryPoints = useMemo<Point[]>(() => {
+    const origin = availableHubs.find(h => h.id === originHubId);
+    const points: Point[] = [];
+    if (origin) {
+      points.push({ label: `Origin (${origin.name})`, coordinates: [origin.lng, origin.lat], tone: "default" })
+    }
+    waypoints.forEach((wp, i) => {
+      points.push({ label: `Stop ${i+1}`, coordinates: [wp.lng, wp.lat], tone: i === 0 ? "high" : i === 1 ? "medium" : "low" })
+    })
+    return points
+  }, [originHubId, waypoints])
+
+  const routeLine = useMemo(() => {
+    return result?.pareto_solutions?.[selectedRouteIndex]?.route_geometry?.coordinates
+  }, [result, selectedRouteIndex])
   const chartData = useMemo(
     () =>
       result?.pareto_solutions?.map((item) => ({
@@ -62,48 +123,39 @@ export default function OptimizePage() {
     [result]
   )
 
-  async function submitRoute() {
+  const submitRoute = async () => {
     setIsSubmitting(true)
+    setError(null)
+    
     try {
       const payload = {
         vehicle_id: "B-ORCA-21",
         vehicle_type: vehicleType,
-        load_weight_kg: 24,
-        origin_hub_id: "hub_cakung",
+        load_weight_kg: waypoints.reduce((sum, w) => sum + w.weight, 0),
+        origin_hub_id: originHubId,
         current_traffic_level: "normal",
-        delivery_stops: [
-          {
-            shipment_id: "cikarang-001",
-            destination_lat: -6.326,
-            destination_lng: 107.143,
-            sla_deadline: new Date(Date.now() + 1000 * 60 * 180).toISOString(),
-            weight_kg: 8,
-          },
-          {
-            shipment_id: "sunter-002",
-            destination_lat: -6.143,
-            destination_lng: 106.877,
-            sla_deadline: new Date(Date.now() + 1000 * 60 * 220).toISOString(),
-            weight_kg: 6,
-          },
-          {
-            shipment_id: "bogor-003",
-            destination_lat: -6.597,
-            destination_lng: 106.793,
-            sla_deadline: new Date(Date.now() + 1000 * 60 * 300).toISOString(),
-            weight_kg: 10,
-          },
-        ],
+        delivery_stops: waypoints.map((wp, i) => ({
+          shipment_id: wp.id,
+          destination_lat: wp.lat,
+          destination_lng: wp.lng,
+          sla_deadline: new Date(Date.now() + 1000 * 60 * (180 + i * 40)).toISOString(),
+          weight_kg: wp.weight,
+        })),
+        routing_engine: routingEngine,
       }
       setResult(await apiFetch<RouteOptimizationResponse>("/optimize/route", {method: "POST", body: JSON.stringify(payload)}))
-    } catch {
+      setSelectedRouteIndex(0)
+      setFocusPoint(null)
+    } catch (err) {
       setResult(null)
+      const msg = err instanceof Error ? err.message : "Unknown error"
+      setError(msg.includes("aborted") || msg.includes("abort") ? "Request timed out (>120s). Pastikan backend berjalan." : `Gagal: ${msg}`)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const [optimizationGoal, setOptimizationGoal] = useState("lowest_cost")
+
 
   return (
     <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-slate-50/50 min-h-screen">
@@ -114,21 +166,23 @@ export default function OptimizePage() {
             Configure parameters to generate optimal global delivery routes.
           </p>
         </div>
-        <Button onClick={submitRoute} disabled={isSubmitting} className="bg-[#005A8C] hover:bg-[#004870] shadow-sm">
-          {isSubmitting ? "Optimizing..." : "Optimize Route"}
-        </Button>
       </div>
 
-      {/* Map at the top, full width */}
-      <RouteMap 
-        title="Optimized Route Preview" 
-        points={selectedGeometryPoints} 
-        className="h-[450px] w-full shadow-sm border-slate-200" 
-      />
+      <div className="flex flex-col gap-6">
+        {/* Top: Full Width Map */}
+        <Card className="w-full shadow-sm border-slate-200 flex flex-col min-h-[450px]">
+          <CardContent className="p-0 flex-1 relative min-h-[400px]">
+            <RouteMap 
+              points={selectedGeometryPoints} 
+              routeLine={routeLine}
+              className="absolute inset-0 w-full h-full border-0 rounded-b-xl" 
+            />
+          </CardContent>
+        </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[380px_1fr] items-start">
-        {/* Left Column: Route Configuration */}
-        <Card className="shadow-sm border-slate-200">
+        <div className="grid gap-6 xl:grid-cols-12 items-stretch h-full">
+          {/* Bottom Left Column: Route Configuration */}
+          <Card className="col-span-1 xl:col-span-4 shadow-sm border-slate-200 h-full">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Route Configuration</CardTitle>
           </CardHeader>
@@ -136,154 +190,245 @@ export default function OptimizePage() {
             {/* Timeline Input */}
             <div className="relative ml-2 space-y-6 before:absolute before:inset-0 before:ml-[7px] before:w-0.5 before:-translate-x-px before:bg-slate-200">
               <div className="relative flex items-start gap-4">
-                <div className="h-4 w-4 mt-1 rounded-full bg-[#005A8C] border-[3px] border-white shadow-sm ring-1 ring-slate-200 z-10" />
+                <div className="h-4 w-4 mt-2.5 rounded-full bg-[#005A8C] border-[3px] border-white shadow-sm ring-1 ring-slate-200 z-10" />
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs text-slate-500">Origin</Label>
-                  <Input defaultValue="DC Cakung" readOnly className="h-9 bg-slate-50/50" />
+                  <Select value={originHubId} onValueChange={(val) => {
+                    setResult(null)
+                    setOriginHubId(val || "hub_jakarta_selatan")
+                    const hub = availableHubs.find(h => h.id === val)
+                    if (hub) setFocusPoint([hub.lng, hub.lat])
+                  }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Origin">
+                      {availableHubs.find((h) => h.id === originHubId)?.name || originHubId}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableHubs.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 </div>
               </div>
+              
+              {waypoints.map((wp, index) => {
+                const matchedHub = availableHubs.find(h => Math.abs(h.lat - wp.lat) < 0.0001 && Math.abs(h.lng - wp.lng) < 0.0001);
+                return (
+                <div key={wp.id} className="relative flex items-start gap-4">
+                  <div className="h-4 w-4 mt-2.5 rounded-full bg-white border-2 border-slate-300 shadow-sm z-10" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-xs font-semibold text-slate-600">
+                        Stop {index + 1} {matchedHub ? <span className="font-normal text-slate-400">({matchedHub.name})</span> : null}
+                      </Label>
+                      {waypoints.length > 1 && (
+                        <button onClick={() => handleRemoveWaypoint(wp.id)} className="text-slate-400 hover:text-red-500">
+                          <Trash2Icon className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                      <Select onValueChange={(val: string | null) => {
+                        if (!val) return
+                        handleUpdateWaypoint(wp.id, "hub", val)
+                        const hub = availableHubs.find(h => h.id === val)
+                        if (hub) setFocusPoint([hub.lng, hub.lat])
+                      }}>
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Quick Pick Hub..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableHubs.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <div className="grid grid-cols-[1fr_1fr_4.5rem] gap-2">
+                        <Input type="number" step="0.001" value={wp.lat} onChange={e => {
+                          const v = parseFloat(e.target.value) || 0
+                          handleUpdateWaypoint(wp.id, 'lat', v)
+                          setFocusPoint([wp.lng, v])
+                        }} className="h-8 bg-white text-xs w-full" placeholder="Lat" />
+                        <Input type="number" step="0.001" value={wp.lng} onChange={e => {
+                          const v = parseFloat(e.target.value) || 0
+                          handleUpdateWaypoint(wp.id, 'lng', v)
+                          setFocusPoint([v, wp.lat])
+                        }} className="h-8 bg-white text-xs w-full" placeholder="Lng" />
+                        <div className="relative w-full">
+                          <Input type="number" value={wp.weight} onChange={e => handleUpdateWaypoint(wp.id, 'weight', parseFloat(e.target.value) || 0)} className="h-8 bg-white text-xs text-left pr-6 w-full" placeholder="Weight" />
+                          <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none">kg</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )})}
+
               <div className="relative flex items-center gap-4">
                 <div className="h-4 w-4 rounded-full bg-white border-2 border-[#005A8C] flex items-center justify-center z-10">
                   <div className="h-1.5 w-1.5 bg-[#005A8C] rounded-full" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline">⊕ Add Waypoint</span>
-                </div>
-              </div>
-              <div className="relative flex items-start gap-4">
-                <div className="h-4 w-4 mt-1 rounded-full bg-white border-2 border-slate-300 shadow-sm z-10" />
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs text-slate-500">Destination</Label>
-                  <Input defaultValue="Multiple Stops (3)" readOnly className="h-9 bg-slate-50/50" />
+                  <span onClick={handleAddWaypoint} className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline">⊕ Add Waypoint</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Vehicle Class</Label>
-                <Select value={vehicleType} onValueChange={(val) => setVehicleType(val || "truck")}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="van">Van</SelectItem>
-                    <SelectItem value="truck">Truck</SelectItem>
-                    <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="space-y-3">
+                  <Label>Vehicle Type</Label>
+                  <Select value={vehicleType} onValueChange={(val) => setVehicleType(val || "van_diesel")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Vehicle">
+                        {vehicleType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableVehicles.map(v => (
+                        <SelectItem key={v} value={v}>{v.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Departure Date</Label>
-                <Input defaultValue={new Date().toLocaleDateString('en-US')} readOnly className="h-9 bg-slate-50/50" />
+              <div className="space-y-3">
+                  <Label>Routing Engine</Label>
+                  <Select value={routingEngine} onValueChange={(val) => setRoutingEngine(val || "osmnx")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Engine">
+                        {routingEngine === "stadia" ? "Stadia Maps API" : "Local (OSMnx)"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="osmnx">Local (OSMnx)</SelectItem>
+                      <SelectItem value="stadia">Stadia Maps API</SelectItem>
+                    </SelectContent>
+                  </Select>
               </div>
+            </div>
+            
+            <div className="pt-6 border-t border-slate-200">
+              <Button onClick={() => submitRoute()} disabled={isSubmitting} className="w-full bg-[#005A8C] hover:bg-[#004870] shadow-sm flex items-center justify-center gap-2 py-6 text-base font-semibold">
+                {isSubmitting && (
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {isSubmitting ? "Generating Optimal Routes..." : "Optimize Route"}
+              </Button>
+              {error && <p className="text-xs text-red-500 mt-2 text-center">{error}</p>}
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tujuan Optimasi</Label>
-              <div className="space-y-2">
-                <Button 
-                  onClick={() => setOptimizationGoal("fastest_eta")}
-                  variant="outline" 
-                  className={`w-full justify-start ${optimizationGoal === "fastest_eta" ? "font-medium border-[#005A8C] text-[#005A8C] bg-blue-50/30" : "font-normal text-slate-600 bg-white"}`}>
-                  <div className={`h-3 w-3 rounded-full mr-3 ${optimizationGoal === "fastest_eta" ? "border-[3px] border-[#005A8C]" : "border border-slate-400"}`} /> ETA Tercepat
-                </Button>
-                <Button 
-                  onClick={() => setOptimizationGoal("lowest_cost")}
-                  variant="outline" 
-                  className={`w-full justify-start ${optimizationGoal === "lowest_cost" ? "font-medium border-[#005A8C] text-[#005A8C] bg-blue-50/30" : "font-normal text-slate-600 bg-white"}`}>
-                  <div className={`h-3 w-3 rounded-full mr-3 ${optimizationGoal === "lowest_cost" ? "border-[3px] border-[#005A8C]" : "border border-slate-400"}`} /> Biaya Terendah
-                </Button>
-                <Button 
-                  onClick={() => setOptimizationGoal("lowest_co2")}
-                  variant="outline" 
-                  className={`w-full justify-start ${optimizationGoal === "lowest_co2" ? "font-medium border-[#005A8C] text-[#005A8C] bg-blue-50/30" : "font-normal text-slate-600 bg-white"}`}>
-                  <div className={`h-3 w-3 rounded-full mr-3 ${optimizationGoal === "lowest_co2" ? "border-[3px] border-[#005A8C]" : "border border-slate-400"}`} /> CO2 Terendah
-                </Button>
-                <Button 
-                  onClick={() => setOptimizationGoal("balanced")}
-                  variant="outline" 
-                  className={`w-full justify-start ${optimizationGoal === "balanced" ? "font-medium border-[#005A8C] text-[#005A8C] bg-blue-50/30" : "font-normal text-slate-600 bg-white"}`}>
-                  <div className={`h-3 w-3 rounded-full mr-3 ${optimizationGoal === "balanced" ? "border-[3px] border-[#005A8C]" : "border border-slate-400"}`} /> Seimbang
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Right Column: Charts and Tables */}
-        <div className="flex flex-col gap-6">
+        {/* Bottom Right side: Route Alternatives */}
+        <div className="col-span-1 xl:col-span-8 flex flex-col gap-6 h-full"> 
+          {/* Top Card: Tradeoff Analysis */}
           <Card className="shadow-sm border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
               <CardTitle className="text-lg">Tradeoff Analysis (Pareto)</CardTitle>
-              <div className="flex items-center gap-4 text-sm text-slate-600">
-                <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#005A8C]" /> Recommended</span>
-                <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full border border-slate-400" /> Alternative</span>
-              </div>
             </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                <ScatterChart margin={{top: 20, right: 20, bottom: 20, left: 10}}>
-                  <CartesianGrid vertical={false} stroke="#E2E8F0" />
-                  <XAxis type="number" dataKey="eta" name="ETA" unit=" min" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="number" dataKey="co2" name="CO2" unit=" kg" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} />
-                  <ChartTooltip cursor={{strokeDasharray: "3 3"}} content={<ChartTooltipContent indicator="dot" />} />
-                  <Scatter data={chartData} fill="#005A8C" />
-                </ScatterChart>
-              </ChartContainer>
+            <CardContent className="p-6">
+              {result ? (
+                <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                  <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis type="number" dataKey="co2" name="CO2 Emissions (kg)" tickLine={false} axisLine={false} tickMargin={10} tick={{fill: '#64748b', fontSize: 12}} domain={['auto', 'auto']} label={{ value: 'CO2 Emissions (kg)', position: 'insideBottom', offset: -15, fill: '#64748b', fontSize: 12 }} />
+                    <YAxis type="number" dataKey="eta" name="ETA (mins)" tickLine={false} axisLine={false} tickMargin={10} tick={{fill: '#64748b', fontSize: 12}} domain={['auto', 'auto']} label={{ value: 'ETA (mins)', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 12 }} />
+                    <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent indicator="line" labelFormatter={(label, payload) => payload?.[0]?.payload?.label} />} />
+                    <Scatter data={chartData} fill="#005A8C" line={{ stroke: '#94a3b8', strokeWidth: 1 }}>
+                      {chartData.map((entry, index) => {
+                        const isFastest = entry.label === "fastest";
+                        const isLowest = entry.label === "lowest_emission";
+                        const color = isFastest ? "#d97706" : isLowest ? "#059669" : "#005A8C";
+                        return <Cell key={`cell-${index}`} fill={color} r={isFastest || isLowest ? 8 : 6} stroke="white" strokeWidth={2} />
+                      })}
+                    </Scatter>
+                  </ScatterChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[220px] flex items-center justify-center text-slate-400 text-sm">Run optimization to view tradeoffs.</div>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          {/* Bottom Card: Route Alternatives */}
+          <Card className="shadow-sm border-slate-200 flex-1">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Route Alternatives</CardTitle>
-              <Button variant="ghost" size="sm" className="text-[#005A8C] h-8 font-medium">
-                ↓ Export CSV
-              </Button>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader className="bg-slate-50/50">
-                  <TableRow className="border-slate-200">
-                    <TableHead className="font-medium text-slate-500">Route Label</TableHead>
-                    <TableHead className="font-medium text-slate-500">ETA</TableHead>
-                    <TableHead className="font-medium text-slate-500">CO2</TableHead>
-                    <TableHead className="font-medium text-slate-500">Cost</TableHead>
-                    <TableHead className="font-medium text-slate-500">Risk</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {result?.pareto_solutions?.map((item) => (
-                    <TableRow key={item.index} className="border-slate-200">
-                      <TableCell className="font-medium text-slate-900 flex items-center gap-2">
-                        {item.index === 0 && <span className="text-[#005A8C]">★</span>}
-                        {item.label}
-                      </TableCell>
-                      <TableCell className={item.index === 0 ? "font-semibold text-[#005A8C]" : ""}>{item.travel_time_min} min</TableCell>
-                      <TableCell>{formatNumber(item.co2_kg, 1)} kg</TableCell>
-                      <TableCell>Rp {formatNumber(item.fuel_cost_idr, 0)}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-md text-xs font-medium ${item.sla_risk_score > 50 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
-                          {item.sla_risk_score > 50 ? 'High' : 'Low'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="link" className="text-[#005A8C] h-auto p-0 font-medium">Details</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!result?.pareto_solutions?.length && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                        Click "Optimize Route" to generate alternatives.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            <CardContent className="p-0">
+              {result ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-slate-50/50">
+                      <TableRow className="border-b border-slate-100">
+                        <TableHead className="w-[200px] text-xs font-semibold text-slate-500 uppercase tracking-wider pl-6">Route Label</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">ETA (Mins)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Distance (km)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Est. Cost</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Est. CO2 (kg)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">SLA Risk</TableHead>
+                        <TableHead className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider pr-6"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.pareto_solutions.map((sol, index) => {
+                        const isFastest = sol.label === "fastest";
+                        const isLowest = sol.label === "lowest_emission";
+                        
+                        return (
+                          <TableRow 
+                            key={index} 
+                            className={`hover:bg-slate-50/50 cursor-pointer ${selectedRouteIndex === index ? 'bg-blue-50/40 border-l-2 border-l-[#005A8C]' : ''}`}
+                            onClick={() => setSelectedRouteIndex(index)}
+                          >
+                            <TableCell className="pl-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                  {isFastest || isLowest ? <span className="text-[#005A8C]">★</span> : null}
+                                  Option {String.fromCharCode(65 + index)}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">
+                                  ({isFastest ? "Fastest" : isLowest ? "Lowest Emission" : "Balanced"})
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.travel_time_min}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{(sol.travel_time_min * 35 / 60 / 1.25).toFixed(1)}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">Rp {formatNumber(sol.fuel_cost_idr, 0)}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.co2_kg.toFixed(1)}</TableCell>
+                            <TableCell className="text-center">
+                              <span className={`inline-flex items-center justify-center px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${sol.sla_risk_score >= 70 ? 'bg-[#fee2e2] text-[#991b1b]' : 'bg-[#e2e8f0] text-[#475569]'}`}>
+                                {sol.sla_risk_score >= 70 ? 'High' : 'Low'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6">
+                              <Button variant={selectedRouteIndex === index ? "default" : "ghost"} size="sm" className={selectedRouteIndex === index ? "bg-[#005A8C] text-white" : "text-[#005A8C]"}>
+                                {selectedRouteIndex === index ? "Viewing" : "View"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="min-h-[200px] flex items-center justify-center p-8 text-center">
+                  <div className="max-w-[280px]">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-slate-400 text-xl">⚡</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-1">No Routes Generated</h3>
+                    <p className="text-xs text-slate-500">Run optimization to see Pareto front route alternatives.</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
     </div>

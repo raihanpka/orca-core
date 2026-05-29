@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { apiFetch, type RecentAlert } from "@/lib/api"
 import { formatDateTime } from "@/lib/utils"
+import { toast } from "sonner"
 
 export default function AlertsPage() {
   const { data: { alerts = [] } = {} } = useSWR<{alerts: RecentAlert[]}>("/alerts/recent", apiFetch, {
@@ -20,6 +21,18 @@ export default function AlertsPage() {
   const [selectedAlert, setSelectedAlert] = useState<RecentAlert | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [riskFilter, setRiskFilter] = useState("all")
+  const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(new Set())
+
+  const handleAcknowledge = () => {
+    if (!selectedAlert) return
+    setAcknowledgedIds(new Set([...acknowledgedIds, selectedAlert.id]))
+    toast.success(`Alert ${selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)} acknowledged.`)
+    setSelectedAlert(null)
+  }
+
+  const handleResend = () => {
+    toast.info("Resend request sent via API.")
+  }
 
   const filteredAlerts = alerts.filter(alert => {
     if (searchQuery && !alert.external_id?.toLowerCase().includes(searchQuery.toLowerCase())) return false
@@ -77,7 +90,7 @@ export default function AlertsPage() {
             <SelectValue placeholder="Status: All" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Status: All</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="dispatched">Dispatched</SelectItem>
             <SelectItem value="failed">Failed</SelectItem>
           </SelectContent>
@@ -121,8 +134,8 @@ export default function AlertsPage() {
                     <TableCell className="text-slate-600">{getChannel(alert.sla_risk_score)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5 text-slate-900">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />
-                        Dispatched
+                        <div className={`w-1.5 h-1.5 rounded-full ${acknowledgedIds.has(alert.id) ? 'bg-green-500' : 'bg-slate-900'}`} />
+                        {acknowledgedIds.has(alert.id) ? "Acknowledged" : "Dispatched"}
                       </div>
                     </TableCell>
                     <TableCell className="text-right text-slate-400">›</TableCell>
@@ -156,14 +169,14 @@ export default function AlertsPage() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="bg-white p-5 border-b border-slate-200 flex flex-col gap-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 uppercase font-semibold text-xs tracking-wider">Shipment</span>
-                  <span className="font-medium flex items-center gap-1">
-                    {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)}
+                <div className="flex flex-col gap-1 text-sm">
+                  <span className="text-slate-500 uppercase font-semibold text-xs tracking-wider">Shipment ID</span>
+                  <span className="font-medium flex items-center gap-1 break-all">
+                    {selectedAlert.external_id ?? selectedAlert.shipment_id}
                     <span className="text-slate-400 text-xs">↗</span>
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex flex-col gap-1 text-sm">
                   <span className="text-slate-500 uppercase font-semibold text-xs tracking-wider">Time</span>
                   <span className="text-slate-900">
                     {new Date(selectedAlert.created_at).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false })} UTC
@@ -198,8 +211,8 @@ export default function AlertsPage() {
               </div>
 
               <div className="p-5 bg-white border-t border-slate-200 rounded-b-lg flex gap-3">
-                <Button variant="outline" className="flex-1 bg-white">Resend</Button>
-                <Button className="flex-1 bg-black text-white hover:bg-slate-800">Acknowledge</Button>
+                <Button variant="outline" className="flex-1 bg-white" onClick={handleResend}>Resend</Button>
+                <Button className="flex-1 bg-black text-white hover:bg-slate-800" onClick={handleAcknowledge}>Acknowledge</Button>
               </div>
             </CardContent>
           </Card>

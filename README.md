@@ -1,20 +1,20 @@
 # ORCA: Optimized Routing & Carbon Analytics
 
-ORCA is a real-time logistics intelligence platform built for Blibli Case. It combines LightGBM delay prediction, NSGA-II multi-objective route optimization, OSMnx road network routing for West Java, and GLEC-certified carbon tracking into a unified dashboard. The system models SLA risk dynamically using a Python subscriber that listens to live shipment events and exposes risk scores to the dashboard via SWR polling.
+ORCA is a real-time logistics intelligence platform built for Blibli Case. It combines LightGBM delay prediction, NSGA-II multi-objective route optimization, OSMnx road network routing for Jabodetabek, and GLEC-certified carbon tracking into a unified dashboard. The system models SLA risk dynamically using a Python script that injects live shipment events and exposes risk scores to the dashboard via SWR polling API.
 
 ## Foundation
 
 * **Delay Prediction:** LightGBM with `CalibratedClassifierCV` outputs well-calibrated delay probabilities, not just binary classifications. SHAP values expose the exact feature contributions behind each prediction.
-* **Multi-Objective Routing:** NSGA-II (pymoo) simultaneously minimizes travel time, fuel cost, CO₂ emissions, and SLA risk, using OSMnx West Java graph distance when `data/processed/osmnx/west_java.graphml` exists.
-* **Carbon Accounting:** CO₂ calculations follow the GLEC Framework v3.0 (`CO₂ = distance × load_ton × emission_factor`), with factors sourced directly from the database at runtime.
+* **Multi-Objective Routing:** NSGA-II (pymoo) simultaneously minimizes travel time, fuel cost, CO2 emissions, and SLA risk, using OSMnx Jabodetabek graph distance from `data/processed/osmnx/jabodetabek.pkl`.
+* **Carbon Accounting:** CO2 calculations follow the GLEC Framework v3.0 (`CO2 = distance * load_ton * emission_factor`), with factors sourced directly from the database at runtime.
 
 ## How It Works
 
-1. **Simulation Replay:** A Python script publishes historical Olist shipment events to a Redis channel at configurable speed.
-2. **Python Subscriber:** The `subscriber.py` in `orca-ai` picks up each event, computes a delay prediction, stores results in a TimescaleDB hypertable.
-3. **Alerts Fire Automatically:** If `sla_risk_score >= 70`, the system automatically dispatches a WhatsApp alert via Fonnte with an idempotency guard so no shipment gets double-notified.
+1. **Simulation Replay:** A Python script `stream_data.py` publishes shipment events to PostgreSQL at configurable intervals.
+2. **Backend Processing:** The FastAPI in `orca-ai` computes delay predictions using LightGBM and stores results in a TimescaleDB hypertable.
+3. **Alerts Fire Automatically:** If `sla_risk_score >= 70`, the system automatically logs the intervention flag in the database.
 4. **Dashboard Updates Live:** The Next.js frontend uses SWR polling to fetch active shipments and patch individual rows without a full page reload.
-5. **Route Optimization on Demand:** A dispatcher can submit a multi-stop delivery job; NSGA-II returns a Pareto front of route alternatives visualized as a scatter chart (time vs CO₂).
+5. **Route Optimization on Demand:** A dispatcher can submit a multi-stop delivery job; NSGA-II returns a Pareto front of route alternatives visualized as a scatter chart.
 
 ## Project Structure
 
@@ -35,10 +35,6 @@ orca/
 │   └── init-db/01_schema.sql # TimescaleDB schema (auto-mounted on first container start)
 └── mlruns/                   # MLflow artifact storage
 ```
-
-## Product Documents
-
-- [Product Requirement Document](.docs/ORCA_PRD.md)
 
 ## Technology Stack
 
@@ -109,13 +105,11 @@ KAGGLE_KEY=your_kaggle_key
 # ML config
 ALERT_RISK_THRESHOLD=70.0
 DEMO_MODE=false
-OSMNX_GRAPH_PATH=../../data/processed/osmnx/west_java.graphml
+OSMNX_GRAPH_PATH=../../data/processed/osmnx/jabodetabek.graphml
 OSMNX_ENABLE_DOWNLOAD=false
-NEXT_PUBLIC_ENABLE_WS=false
 ```
 
 All other variables (database URLs, Redis, MLflow) are pre-filled to match the Docker Compose service names and work out of the box.
-Keep `NEXT_PUBLIC_ENABLE_WS=false` for local development. Open the dashboard first, then click `Start Live` only after `orca-engine` is healthy.
 
 ## Running the Stack
 
@@ -143,7 +137,6 @@ make dev
 
 ```bash
 make dev-ai       # FastAPI on http://localhost:8000
-make dev-engine   # Go engine on http://localhost:9090
 make dev-web      # Next.js on http://localhost:3000
 ```
 
@@ -211,6 +204,9 @@ curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
 ---
 
 ## Credits & Citations
+
+**Product Requirements Document:**
+* [Product Requirements Document](.docs/ORCA_PRD.md)
 
 **Supporting Literature:**
 

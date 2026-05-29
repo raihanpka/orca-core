@@ -18,6 +18,7 @@ class OptimizeRouteRequest(BaseModel):
     origin_hub_id: str
     delivery_stops: list[DeliveryStop] = Field(min_length=1, max_length=10)
     current_traffic_level: str = "normal"
+    routing_engine: str = "osmnx"
 
 
 class ParetoSolution(BaseModel):

@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { Toaster } from "sonner";
+
 export const metadata: Metadata = {
   title: "Orca Web | BliBli",
   description: "Optimized Route and Carbon Analytics",
@@ -48,6 +50,7 @@ export default function RootLayout({
             </SidebarInset>
           </SidebarProvider>
         </TooltipProvider>
+        <Toaster />
       </body>
     </html>
   );

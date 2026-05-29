@@ -16,6 +16,7 @@ RETRAIN_THRESHOLD = 500
 
 async def process_shipment_event(app: FastAPI, payload: dict):
     pool = app.state.db_pool
+    print(f"Processing shipment: {payload.get('shipment_id')}")
     if not pool:
         return
 
@@ -34,14 +35,29 @@ async def process_shipment_event(app: FastAPI, payload: dict):
     if not shipment_id:
         return
 
+    # 1.5. Ensure shipment exists in shipments table
+    await pool.execute(
+        """
+        INSERT INTO shipments (id, order_id, status, origin_hub_id, current_hub_id, destination_lat, destination_lng, weight_kg, volume_m3, current_traffic_level, vehicle_type, route_geometry, created_at, updated_at)
+        VALUES ($1::uuid, $2, 'in_transit', $3, $3, $4, $5, $6, $7, 'normal', 'van', NULL, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING
+        """,
+        shipment_id, 
+        payload.get("order_id", "sim-order"),
+        payload.get("origin_hub_id", "hub_unknown"),
+        payload.get("destination_lat", 0.0),
+        payload.get("destination_lng", 0.0),
+        payload.get("weight_kg", 0.0),
+        payload.get("volume_m3", 0.0)
+    )
+
     # 2. Update DB with new prediction state
     await pool.execute(
         """
-        UPDATE shipments 
-        SET delay_probability = $1, sla_risk_score = $2, latest_status = 'in_transit', updated_at = NOW()
-        WHERE id = $3::uuid
+        INSERT INTO shipment_predictions (time, shipment_id, delay_probability, sla_risk_score, predicted_delay_hrs)
+        VALUES (NOW(), $1::uuid, $2, $3, 0)
         """,
-        delay_prob, risk_score, shipment_id
+        shipment_id, delay_prob, risk_score
     )
 
     # 3. Handle Alerts
@@ -68,16 +84,16 @@ async def process_shipment_event(app: FastAPI, payload: dict):
             logger.info("Alert recorded for shipment %s (Risk: %.1f)", shipment_id, risk_score)
 
     # 4. Hub Metrics Update (Upsert simple counter for the MVP)
+    import random
     origin_hub = payload.get("origin_hub_id", "hub_unknown")
+    realistic_dwell = random.uniform(60, 360) # 1h to 6h dwell time in minutes
+    
     await pool.execute(
         """
-        INSERT INTO hub_metrics (hub_id, active_shipments, avg_dwell_mins, delay_risk_rate)
-        VALUES ($1, 1, 0, $2)
-        ON CONFLICT (hub_id, recorded_at) DO UPDATE 
-        SET active_shipments = hub_metrics.active_shipments + 1,
-            delay_risk_rate = (hub_metrics.delay_risk_rate + EXCLUDED.delay_risk_rate) / 2
+        INSERT INTO hub_metrics (time, hub_id, active_shipments, avg_dwell_time_min, delay_rate, inbound_volume)
+        VALUES (NOW(), $1, 1, $3, $2, 1)
         """,
-        origin_hub, risk_score / 100.0
+        origin_hub, risk_score / 100.0, realistic_dwell
     )
 
 

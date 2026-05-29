@@ -74,7 +74,7 @@ orca-engine (Go :9090)           <-- Real-time shipment state machine, streaming
         |
         | Redis Pub/Sub (internal only, no host port exposure)
         v
-Redis (:6379) - internal only    <-- Prediction cache, SLA score cache, pub/sub broker
+Redis (:6380) - internal only    <-- Prediction cache, SLA score cache, pub/sub broker
         |
         v
 PostgreSQL + TimescaleDB (:5432) <-- Shipment records, predictions, carbon records,
@@ -117,7 +117,7 @@ networks:
 
 services:
   postgres:  # No ports: key - host cannot reach 5432 directly
-  redis:     # No ports: key - host cannot reach 6379 directly
+  redis:     # No ports: key - host cannot reach 6380 directly
   orca-ai:   # ports: ["8000:8000"]
   orca-engine: # ports: ["9090:9090"]
   orca-web:  # ports: ["3000:3000"]
@@ -915,8 +915,8 @@ DEBUG=true
 
 DATABASE_URL=postgresql://orca:orca_pass@postgres:5432/orca_db
 DEV_DATABASE_URL=postgresql://orca:orca_pass@localhost:5432/orca_db
-REDIS_URL=redis://redis:6379
-DEV_REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://redis:6380
+DEV_REDIS_URL=redis://localhost:6380
 PREDICTION_CACHE_TTL_SECONDS=900
 INTERNAL_API_TOKEN=change_me_for_local_dev
 PUBLIC_API_TOKEN=change_me_for_public_api

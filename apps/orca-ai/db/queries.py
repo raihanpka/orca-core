@@ -150,12 +150,12 @@ async def bulk_insert_carbon_records(pool, records: list[tuple[str, float, float
           $1::uuid,
           $2,
           ROUND(($2::numeric * ($3::numeric / 1000.0) * emission_factor)::numeric, 4),
-          $4,
+          $4::varchar,
           ROUND(($3::numeric / 1000.0)::numeric, 4),
           emission_factor,
           glec_version
         FROM glec_emission_factors
-        WHERE vehicle_type = $4
+        WHERE vehicle_type = $4::varchar
         ON CONFLICT (shipment_id) DO NOTHING
         """,
         records,

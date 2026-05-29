@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { AlertTriangleIcon, XIcon, TruckIcon, ClockIcon, AlertCircleIcon, CloudIcon, CloudLightningIcon, SearchIcon } from "lucide-react"
+import { AlertTriangleIcon, XIcon, TruckIcon, ClockIcon, AlertCircleIcon, CloudIcon, CloudLightningIcon, SearchIcon, Loader2Icon } from "lucide-react"
 
 import { RiskBadge } from "@/components/dashboard/risk-badge"
 import { Badge } from "@/components/ui/badge"
@@ -36,14 +36,10 @@ export default function DashboardPage() {
     refreshInterval: pollInterval,
     fallbackData: { alerts: [] },
   })
-  const {data: hubs = []} = useSWR<HubMetric[]>("/hubs/health", apiFetch, {
+  const {data: hubsResponse = {hubs: []}} = useSWR<{hubs: HubMetric[]}>("/analytics/hubs", apiFetch, {
     refreshInterval: pollInterval,
-    fallbackData: [
-      { hub_id: "FRA-01", hub_name: "Frankfurt", current_inbound_volume: 0, avg_dwell_time_min: 144, delay_rate_7d: 0, congestion_level: "low", alert: false },
-      { hub_id: "AMS-02", hub_name: "Amsterdam", current_inbound_volume: 0, avg_dwell_time_min: 306, delay_rate_7d: 0, congestion_level: "medium", alert: false },
-      { hub_id: "LHR-03", hub_name: "London", current_inbound_volume: 0, avg_dwell_time_min: 180, delay_rate_7d: 0, congestion_level: "low", alert: false },
-    ]
   })
+  const hubs = hubsResponse?.hubs ?? [];
 
   const rows = shipments.data?.shipments ?? []
   const highRisk = rows.filter((row) => (row.sla_risk_score ?? 0) >= 70).length
@@ -129,12 +125,19 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold text-slate-900">Hub Status</h2>
         <div className="grid gap-4 md:grid-cols-3">
           {hubs.slice(0, 3).map((hub) => (
-            <div key={hub.hub_id} className="bg-white border border-slate-200 shadow-sm rounded-md p-4 flex items-center justify-between">
+            <div 
+              key={hub.hub_id} 
+              className={`bg-white border shadow-sm rounded-sm p-4 flex items-center justify-between ${
+                hub.congestion_level === 'medium' || hub.congestion_level === 'high' 
+                  ? 'border-y-slate-200 border-r-slate-200 border-l-4 border-l-slate-900' 
+                  : 'border-slate-200'
+              }`}
+            >
               <div>
-                <div className="text-sm font-medium text-slate-900">{hub.hub_id}</div>
-                <div className="text-sm text-slate-500">Dwell: {(hub.avg_dwell_time_min / 60).toFixed(1)}h</div>
+                <div className="text-sm font-medium text-slate-900 uppercase">{hub.hub_id.replace('hub_', 'HUB-')}</div>
+                <div className="text-sm text-slate-500 mt-0.5">Dwell: {(hub.avg_dwell_time_min / 60).toFixed(1)}h</div>
               </div>
-              <span className={`px-2 py-1 rounded-md text-xs font-semibold border tracking-wider uppercase ${hub.congestion_level === 'high' ? 'bg-slate-200 border-slate-400 text-slate-700' : hub.congestion_level === 'medium' ? 'bg-slate-50 border-slate-300 text-slate-600' : 'bg-transparent border-dashed border-slate-300 text-slate-400'}`}>
+              <span className={`px-2 py-1 rounded-sm text-[10px] font-bold border tracking-wider uppercase ${hub.congestion_level === 'high' ? 'bg-slate-200 border-slate-400 text-slate-700' : hub.congestion_level === 'medium' ? 'bg-slate-200 border-slate-400 text-slate-800' : 'bg-transparent border-dashed border-slate-300 text-slate-500'}`}>
                 {hub.congestion_level}
               </span>
             </div>
@@ -175,19 +178,33 @@ export default function DashboardPage() {
                         {shipment.external_id ?? shipment.id.slice(0, 8)}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-slate-600">{shipment.origin_hub_id}</TableCell>
+                    <TableCell className="text-slate-600 capitalize">
+                      {shipment.origin_hub_id.replace(/^hub_/, '').replace(/_/g, ' ')}
+                    </TableCell>
                     <TableCell className="text-slate-600">{shipment.destination_zone}</TableCell>
                     <TableCell className="text-slate-600">
-                      {shipment.predicted_delay_hours ? formatDateTime(new Date(new Date(shipment.sla_deadline || Date.now()).getTime() + (shipment.predicted_delay_hours * 3600000)).toISOString()) : "-"}
+                      {shipment.predicted_delay_hours !== null && shipment.predicted_delay_hours !== undefined ? (
+                         formatDateTime(new Date(new Date(shipment.sla_deadline || Date.now()).getTime() + (shipment.predicted_delay_hours * 3600000)).toISOString())
+                      ) : (
+                         <div className="flex items-center text-slate-400 text-xs gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin"/> Calculating ETA...</div>
+                      )}
                     </TableCell>
                     <TableCell className="text-slate-600" suppressHydrationWarning>{formatDateTime(shipment.sla_deadline)}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-0.5 rounded-sm text-xs font-medium border ${isHighRisk ? 'bg-slate-200 border-slate-400 text-slate-700' : 'bg-transparent border-dashed border-slate-300 text-slate-400'}`}>
-                        {isHighRisk ? 'High' : 'Low'}
+                      {shipment.sla_risk_score !== null && shipment.sla_risk_score !== undefined ? (
+                        <span className={`px-2 py-0.5 rounded-sm text-xs font-medium border ${isHighRisk ? 'bg-slate-200 border-slate-400 text-slate-700' : 'bg-transparent border-dashed border-slate-300 text-slate-400'}`}>
+                          {isHighRisk ? 'High' : 'Low'}
+                        </span>
+                      ) : (
+                        <div className="flex items-center text-slate-400 text-xs gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin"/> Scoring Risk...</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-slate-900 capitalize">{shipment.status.replace(/_/g, ' ')}</TableCell>
+                    <TableCell className="text-right">
+                      <span className="inline-block p-2 -mr-2 text-slate-300 font-medium cursor-not-allowed">
+                        ›
                       </span>
                     </TableCell>
-                    <TableCell className="text-slate-900">{shipment.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</TableCell>
-                    <TableCell className="text-right text-slate-400 font-medium">›</TableCell>
                   </TableRow>
                 )
               })}

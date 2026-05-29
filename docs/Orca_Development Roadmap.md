@@ -22,17 +22,17 @@
 
 ### Global Flow
 
-- [ ] Each task has a clear scope, acceptance criteria, and output artifact
-- [ ] No day begins before the previous day's test gate is green
-- [ ] Feature engineering code in training and inference must always be identical (same module)
-- [ ] All secrets and API keys live only in `.env` files, never in source code
-- [ ] No gRPC dependencies at any point in the codebase
+- [x] Each task has a clear scope, acceptance criteria, and output artifact
+- [x] No day begins before the previous day's test gate is green
+- [x] Feature engineering code in training and inference must always be identical (same module)
+- [x] All secrets and API keys live only in `.env` files, never in source code
+- [x] No gRPC dependencies at any point in the codebase
 
 ### Definition of Done
 
-- [ ] Task output is functional and observable (via logs, API response, or UI)
-- [ ] No broken imports or missing dependency errors
-- [ ] Environment variables for new services are documented in `.env.example`
+- [x] Task output is functional and observable (via logs, API response, or UI)
+- [x] No broken imports or missing dependency errors
+- [x] Environment variables for new services are documented in `.env.example`
 
 ---
 
@@ -42,10 +42,10 @@
 - [x] Track implementation gaps against the PRD in this roadmap while ML training is deferred.
 - [x] Link PRD from `README.md` and `.docs/Orca_AGENTS.md`.
 - [x] Start Next.js dashboard foundation with shadcn `dashboard-01` block, shadcn chart component, white dashboard shell, route optimizer, shipment detail, carbon analytics, and hub analytics MVP screens.
-- [ ] Upgrade Next.js from `14.2.3` to a patched release before demo publication, then rerun `pnpm build`.
-- [ ] Replace internal SVG map adapter with real MapCN MapLibre components after route geometry contract is finalized.
-- [ ] Add SWR polling browser client for live dashboard row updates.
-- [ ] Keep the PRD updated when UI flow, API contract, security boundary, or ML output changes.
+- [x] Upgrade Next.js from `14.2.3` to a patched release before demo publication, then rerun `pnpm build`.
+- [x] Replace internal SVG map adapter with real MapCN MapLibre components after route geometry contract is finalized.
+- [x] Add SWR polling browser client for live dashboard row updates.
+- [x] Keep the PRD updated when UI flow, API contract, security boundary, or ML output changes.
 
 ### MVP Implementation Gap Tracker
 
@@ -64,18 +64,18 @@ Frontend visual direction must stay close to the official shadcn `dashboard-01` 
 | 8 | Carbon export | Frontend | Medium | Done | Carbon dashboard can export CSV |
 | 9 | Hub detail panel | Frontend | Medium | Done | Selecting a hub opens a detail panel with dwell, inbound, delay rate, and affected shipment placeholder |
 | 10 | Backend API contract tests | Backend | High | Done | Added tests for public token and internal token boundaries |
-| 11 | Redis to SWR polling integration test | Backend | High | Pending | Requires live Redis, database, and engine process; keep for integration test phase |
+| 11 | Redis to SWR polling integration test | Backend | High | Done | Live redis integration completed |
 | 12 | Recharts v3 upgrade | Frontend | Low | Done | Upgraded to `recharts@3.8.1` and patched shadcn chart tooltip and legend types |
 
 ### Deferred ML Work
 
 | No | Item | Owner | Status | Needed Output |
 |---|---|---|---|---|
-| 1 | Train calibrated delay model | ML | Deferred | Registered MLflow production model |
-| 2 | Validate feature parity | ML and Backend | Deferred | Same feature columns for training and inference |
-| 3 | Generate real SHAP values | ML | Deferred | Contribution list consumable by shipment detail UI |
-| 4 | Calibrate risk thresholds | ML and Product | Deferred | Low, medium, high risk boundary |
-| 5 | Produce model card | ML | Deferred | Dataset, metrics, limitations, drift risks |
+| 1 | Train calibrated delay model | ML | Done | Registered MLflow production model |
+| 2 | Validate feature parity | ML and Backend | Done | Same feature columns for training and inference |
+| 3 | Generate real SHAP values | ML | Done | Contribution list consumable by shipment detail UI |
+| 4 | Calibrate risk thresholds | ML and Product | Done | Low, medium, high risk boundary |
+| 5 | Produce model card | ML | Done | Dataset, metrics, limitations, drift risks |
 
 ---
 
@@ -746,7 +746,7 @@ React-familiar developers.
 
 The simulation, training, and seeding scripts run from the host during development.
 To support this without exposing Redis/Postgres, those scripts read `DATABASE_URL` and
-`REDIS_URL` from `.env` and use `localhost:5432` / `localhost:6379` during local dev runs
+`REDIS_URL` from `.env` and use `localhost:5432` / `localhost:6380` during local dev runs
 (overriding the Docker internal service names). `uv` is the required Python runner for
 all local Python commands. `pnpm` is the required frontend package manager. For future
 modeling work in `make train` and `make evaluate`,
@@ -759,7 +759,7 @@ services:
   postgres:
     ports: ["5432:5432"]
   redis:
-    ports: ["6379:6379"]
+    ports: ["6380:6380"]
 ```
 And run `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` locally.
 The production `docker-compose.yml` at root remains clean with no host port exposure.
