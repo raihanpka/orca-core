@@ -167,13 +167,16 @@ def main() -> None:
     # Feature metadata — loaded by mlflow_client for contract validation.
     feature_meta = {
         "feature_columns": FEATURE_COLUMNS,
-        "feature_version": "v3",
-        "dataset_version": "olist-v3",
+        "feature_version": "v4",
+        "dataset_version": "olist-v4-indonesia",
         "n_features": len(FEATURE_COLUMNS),
         "gems": [
             "hub_dwell_time", "payment_type", "seller_review",
             "product_category", "seller_punctuality", "holiday_calendar",
             "product_volume_density",
+        ],
+        "v4_additions": [
+            "indonesia_calendar", "delhivery_augmentation", "bmkg_weather",
         ],
     }
     meta_path = PROCESSED / "feature_metadata.json"
@@ -182,8 +185,8 @@ def main() -> None:
 
     with mlflow.start_run(run_name="lightgbm-calibrated") as run:
         mlflow.set_tags({
-            "dataset_version": "olist-v3",
-            "feature_version": "v3",
+            "dataset_version": "olist-v4-indonesia",
+            "feature_version": "v4",
             "feature_columns": ",".join(FEATURE_COLUMNS),
             "n_features": str(len(FEATURE_COLUMNS)),
         })

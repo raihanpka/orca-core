@@ -39,6 +39,17 @@ class InternalPredictRequest(BaseModel):
     product_volume_cm3: float = Field(default=3000.0, ge=0)
     product_density: float = Field(default=0.33, ge=0)
     is_bulky: int = Field(default=0, ge=0, le=1)
+    # v4: Indonesia calendar features
+    days_to_lebaran: int = Field(default=365, ge=0)
+    is_lebaran_window: int = Field(default=0, ge=0, le=1)
+    is_harbolnas: int = Field(default=0, ge=0, le=1)
+    is_ramadan: int = Field(default=0, ge=0, le=1)
+    is_post_longweekend: int = Field(default=0, ge=0, le=1)
+    is_harbolnas_buildup: int = Field(default=0, ge=0, le=1)
+    indonesia_peak_season: int = Field(default=0, ge=0, le=1)
+    # v4: Delhivery-derived features
+    is_ftl_route: int = Field(default=0, ge=0, le=1)
+    congestion_ratio: float = Field(default=1.0, ge=0)
     remaining_hours_to_sla: float
 
 
