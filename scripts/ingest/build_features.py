@@ -1,10 +1,12 @@
-"""Feature engineering pipeline — v3 (Gem features).
+"""Feature engineering pipeline — v4 (Indonesia-ready).
 
-Processes raw Olist CSVs into train/test parquet files with 30 features:
+Processes raw Olist CSVs into train/test parquet files with 39 features:
   v1: distance, timing, hub zone, weather placeholder, historical rates, item/weight
   v2: freight, price ratio, payment installments, same-state flag
   v3: hub dwell time, payment type, seller reviews, product category, seller
       punctuality, holiday/strike calendar, product volume/density
+  v4: Indonesia calendar (Lebaran, Harbolnas, Ramadan — real values from timestamps),
+      wet-season weather proxy for training, Delhivery augmentation (optional merge)
 
 Usage (from repo root):
     make build-features
@@ -31,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "orca-ai"))
 
 from ml.features import build_feature_vector  # noqa: E402
+from ml.indonesia_calendar import INDONESIA_FEATURES, compute as compute_id_calendar  # noqa: E402
 
 RAW = ROOT / "data/raw/olist"
 PROCESSED = ROOT / "data/processed"
@@ -221,6 +224,19 @@ def main() -> None:
     bulky_threshold = float(df["product_volume_cm3"].quantile(0.90))
     df["is_bulky"] = (df["product_volume_cm3"] > bulky_threshold).astype(int)
 
+    # ── Weather severity proxy — Indonesia wet-season pattern ─────────────────
+    # BMKG API provides real scores at inference time. For training (Olist 2016-2018),
+    # we inject a month-based wet-season proxy aligned to Java/Jakarta climate:
+    # Oct-Nov = 0.6, Dec-Feb = 0.8 (peak), Mar-Apr = 0.5, May-Sep = 0.1 (dry).
+    _WET_SEASON_MAP = {
+        1: 0.75, 2: 0.80, 3: 0.55, 4: 0.45,
+        5: 0.15, 6: 0.10, 7: 0.10, 8: 0.10,
+        9: 0.15, 10: 0.50, 11: 0.65, 12: 0.75,
+    }
+    df["weather_severity_score"] = (
+        df["order_purchase_timestamp"].dt.month.map(_WET_SEASON_MAP).fillna(0.2)
+    )
+
     # ── GEM #6: Brazilian holiday, truckers strike, seasonal flags ────────────
     if _HAS_HOLIDAYS:
         br_hols = _holidays_lib.Brazil(years=range(2016, 2020))
@@ -321,6 +337,18 @@ def main() -> None:
         .fillna(global_delay_rate)
     )
 
+    # ── v4: Indonesia calendar — computed from actual order timestamps ───────
+    # Lebaran dates cover 2016-2030 so Olist (2016-2018) rows get real values.
+    # Harbolnas 11.11/12.12 is universal across years; Ramadan window likewise.
+    id_cal_rows = [compute_id_calendar(ts) for ts in df["order_purchase_timestamp"]]
+    id_cal_df = pd.DataFrame(id_cal_rows, index=df.index)
+    for feat in INDONESIA_FEATURES:
+        df[feat] = id_cal_df[feat]
+
+    # ── v4: Delhivery-derived stubs (filled if Delhivery parquet is merged) ──
+    df["is_ftl_route"] = 0
+    df["congestion_ratio"] = 1.0
+
     # ── Encode hub_zone ───────────────────────────────────────────────────────
     encoder = LabelEncoder()
     encoder.fit(df["hub_zone"].astype(str))
@@ -341,6 +369,20 @@ def main() -> None:
         axis=1,
     )
 
+    # ── Optional Delhivery augmentation ──────────────────────────────────────
+    delhivery_path = PROCESSED / "delhivery_features.parquet"
+    if delhivery_path.exists():
+        df_delhivery = pd.read_parquet(delhivery_path)
+        # Align columns: only keep columns that exist in output.
+        common_cols = [c for c in output.columns if c in df_delhivery.columns]
+        df_delhivery = df_delhivery[common_cols]
+        for c in output.columns:
+            if c not in df_delhivery.columns:
+                df_delhivery[c] = 0
+        df_delhivery = df_delhivery[output.columns]
+        output = pd.concat([output, df_delhivery], ignore_index=True)
+        print(f"\nDelhivery augmentation: +{len(df_delhivery)} rows merged")
+
     # Stratified split: ensures both train and test have equal delay rate (~8.8%).
     # Shuffle=True avoids temporal distribution shift where the last 20% of Olist
     # data (late 2018, post-strike) has anomalously low delay rates (5.3% vs 8.8%).
@@ -353,7 +395,7 @@ def main() -> None:
     output.to_parquet(PROCESSED / "simulation_stream.parquet", index=False)
 
     # ── Diagnostics ───────────────────────────────────────────────────────────
-    print("\n=== FEATURE SUMMARY (v3) ===")
+    print("\n=== FEATURE SUMMARY (v4) ===")
     print(f"train_rows={len(train)}  positive_rate={train['is_delayed'].mean():.3f}")
     print(f"test_rows={len(test)}   positive_rate={test['is_delayed'].mean():.3f}")
     print(f"n_features={len(features.columns)}")
@@ -366,6 +408,13 @@ def main() -> None:
     print(f"payment_boleto rate          : {train['payment_boleto'].mean():.3f}")
     print(f"is_strike_window rate        : {train['is_strike_window'].mean():.4f}")
     print(f"is_bulky rate                : {train['is_bulky'].mean():.3f}")
+    print(f"\n--- v4 Indonesia features ---")
+    print(f"weather_severity_score       : med={train['weather_severity_score'].median():.2f}  mean={train['weather_severity_score'].mean():.2f}")
+    print(f"is_lebaran_window rate        : {train['is_lebaran_window'].mean():.4f}")
+    print(f"is_harbolnas rate             : {train['is_harbolnas'].mean():.4f}")
+    print(f"is_ramadan rate               : {train['is_ramadan'].mean():.4f}")
+    print(f"days_to_lebaran              : med={train['days_to_lebaran'].median():.0f}")
+    print(f"indonesia_peak_season rate    : {train['indonesia_peak_season'].mean():.4f}")
 
     print("\nDelay rate by payment_boleto:")
     print(train.groupby("payment_boleto")["is_delayed"].agg(["mean", "count"]).round(3))
