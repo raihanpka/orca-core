@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     here_maps_api_key: str = ""
     bmkg_api_base_url: str = "https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast"
+    bmkg_default_kelurahan: str = "31.71.03.1001"
     fonnte_api_key: str = ""
     fonnte_api_url: str = "https://api.fonnte.com/send"
     alert_recipient_phone: str = ""
