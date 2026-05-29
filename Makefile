@@ -1,7 +1,7 @@
 UV ?= uv
 PNPM ?= pnpm
 
-.PHONY: install infra-up infra-down dev dev-ml dev-down dev-ai dev-engine dev-web download-data build-features seed-db train evaluate validate-shap simulate test test-ai test-engine clean
+.PHONY: install infra-up infra-down dev dev-ml dev-down dev-ai dev-engine dev-web download-data build-features seed-db train evaluate validate-shap evaluate-segments evaluate-full simulate test test-ai test-engine clean
 
 install:
 	cd apps/orca-ai && $(UV) sync --extra dev
@@ -49,6 +49,20 @@ evaluate:
 
 validate-shap:
 	cd apps/orca-ai && $(UV) run python training/validate_shap.py
+
+evaluate-segments:
+	cd apps/orca-ai && $(UV) run python training/evaluate_segments.py
+
+evaluate-full: evaluate validate-shap evaluate-segments
+	@echo ""
+	@echo "==============================================================="
+	@echo "  COMPREHENSIVE EVALUATION COMPLETE"
+	@echo "  Artifacts in data/processed/:"
+	@echo "    - evaluation_plot.png      (Lapis 1-2: confusion + ROC + calibration)"
+	@echo "    - shap_summary.png         (Lapis 3: feature attribution)"
+	@echo "    - evaluation_segments.json (Lapis 4-5: segments + business impact)"
+	@echo "    - optimal_threshold.json   (Production threshold metadata)"
+	@echo "==============================================================="
 
 simulate:
 	cd apps/orca-ai && $(UV) run python ../../scripts/simulate/stream_replay.py
