@@ -9,10 +9,17 @@ from pymoo.optimize import minimize
 
 from api.schemas.optimize import DeliveryStop
 from core.config import get_settings
+from ml.jakarta_graph import road_distance_km, travel_time_min
 
 
 def _distance(a: tuple[float, float], b: tuple[float, float]) -> float:
-    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) * 111
+    """Road-aware distance in km, falls back to Euclidean × 111 when graph absent."""
+    return road_distance_km(a[0], a[1], b[0], b[1])
+
+
+def _travel_time(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Road-aware travel time in minutes."""
+    return travel_time_min(a[0], a[1], b[0], b[1])
 
 
 def _emission_factor(vehicle_type: str) -> float:
@@ -56,20 +63,23 @@ class RoutingProblem(Problem):
 
     def metrics_for_order(self, order: np.ndarray) -> dict:
         total_km = 0.0
+        total_time_min = 0.0
         cursor = self.origin
         ordered_stops = [self.stops[int(index)] for index in order]
+
         for stop in ordered_stops:
             point = (stop.destination_lat, stop.destination_lng)
             total_km += _distance(cursor, point)
+            total_time_min += _travel_time(cursor, point)
             cursor = point
 
-        traffic_multiplier = 1.25
-        travel_time_min = max(1, int(total_km / 35 * 60 * traffic_multiplier))
+        travel_time_min_val = max(1, int(total_time_min))
         co2_kg = round(total_km * (self.load_weight_kg / 1000.0) * self.factor, 4)
         fuel_cost_idr = int(total_km * (900 if "electric" in self.vehicle_type else 1800))
         latest_deadline = min(stop.sla_deadline for stop in ordered_stops)
         remaining_min = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 60
-        sla_risk = 100.0 if travel_time_min > remaining_min else min(65.0, travel_time_min / max(remaining_min, 1) * 50)
+        sla_risk = 100.0 if travel_time_min_val > remaining_min else min(65.0, travel_time_min_val / max(remaining_min, 1) * 50)
+
         geometry_coordinates = [[self.origin[1], self.origin[0]]] + [
             [stop.destination_lng, stop.destination_lat] for stop in ordered_stops
         ]
@@ -79,7 +89,7 @@ class RoutingProblem(Problem):
                 "type": "LineString",
                 "coordinates": geometry_coordinates,
             },
-            "travel_time_min": travel_time_min,
+            "travel_time_min": travel_time_min_val,
             "co2_kg": co2_kg,
             "fuel_cost_idr": fuel_cost_idr,
             "sla_risk_score": round(sla_risk, 2),
@@ -103,8 +113,6 @@ async def optimize_route(stops: list[DeliveryStop], vehicle_type: str, load_weig
     started = time.perf_counter()
     settings = get_settings()
 
-    # In demo mode, use smaller population and fewer generations so the API
-    # responds well within the 5-second target for live demonstrations.
     if settings.demo_mode:
         pop_size = min(settings.nsga2_population_size, 30)
         n_gen = min(settings.nsga2_generations, 50)
@@ -112,7 +120,7 @@ async def optimize_route(stops: list[DeliveryStop], vehicle_type: str, load_weig
         pop_size = settings.nsga2_population_size
         n_gen = settings.nsga2_generations
 
-    problem = RoutingProblem(stops, vehicle_type, load_weight_kg)
+    problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub)
     algorithm = NSGA2(pop_size=pop_size)
     result = minimize(
         problem,

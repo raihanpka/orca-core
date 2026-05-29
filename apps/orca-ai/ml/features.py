@@ -9,10 +9,14 @@ Feature versions:
   v2: freight, price ratio, payment installments, same-state flag
   v3: hub dwell, payment type, seller reviews, product category, seller
       punctuality, holiday/strike calendar, product volume/density
+  v4: Indonesia calendar (Lebaran, Harbolnas, Ramadan), Delhivery augmentation
+      (route type, congestion ratio)
 """
 import math
 from datetime import datetime
 from typing import Any
+
+from ml.indonesia_calendar import INDONESIA_FEATURES, compute as compute_id_calendar
 
 FEATURE_COLUMNS = [
     # ── v1: core features ────────────────────────────────────────────────────
@@ -54,6 +58,17 @@ FEATURE_COLUMNS = [
     "product_volume_cm3",
     "product_density",
     "is_bulky",
+    # ── v4: Indonesia calendar features ───────────────────────────────────────
+    "days_to_lebaran",
+    "is_lebaran_window",
+    "is_harbolnas",
+    "is_ramadan",
+    "is_post_longweekend",
+    "is_harbolnas_buildup",
+    "indonesia_peak_season",
+    # ── v4: Delhivery-derived features ────────────────────────────────────────
+    "is_ftl_route",
+    "congestion_ratio",
 ]
 
 
@@ -120,6 +135,16 @@ def build_feature_vector(row: dict[str, Any], label_encoder: Any | None = None) 
     product_density = float(row.get("product_density") or weight_g / max(volume_cm3, 1.0))
     is_bulky = int(row.get("is_bulky") or (1 if volume_cm3 > 10000 else 0))
 
+    # v4: Indonesia calendar — compute from timestamp, or read pre-computed values
+    id_cal = compute_id_calendar(dispatched_at)
+    for key in INDONESIA_FEATURES:
+        if row.get(key) is not None:
+            id_cal[key] = row[key]
+
+    # v4: Delhivery-derived features
+    is_ftl_route = int(row.get("is_ftl_route") or 0)
+    congestion_ratio = float(row.get("congestion_ratio") or 1.0)
+
     vector = {
         # v1
         "distance_km": float(row.get("distance_km") or 30.0),
@@ -154,5 +179,10 @@ def build_feature_vector(row: dict[str, Any], label_encoder: Any | None = None) 
         "product_volume_cm3": volume_cm3,
         "product_density": product_density,
         "is_bulky": is_bulky,
+        # v4: Indonesia calendar
+        **{k: id_cal[k] for k in INDONESIA_FEATURES},
+        # v4: Delhivery-derived
+        "is_ftl_route": is_ftl_route,
+        "congestion_ratio": congestion_ratio,
     }
     return {column: vector[column] for column in FEATURE_COLUMNS}
