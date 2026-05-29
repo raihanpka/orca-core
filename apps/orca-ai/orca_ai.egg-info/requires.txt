@@ -14,6 +14,7 @@ numpy<2
 optuna>=3
 shap>=0.45
 osmnx>=1.9
+holidays>=0.40
 python-dotenv
 kaggle
 jupyter>=1.1.1
