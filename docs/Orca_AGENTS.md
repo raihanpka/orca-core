@@ -303,7 +303,6 @@ orca/
 │
 ├── scripts/
 │   ├── ingest/
-│   │   ├── download_olist.py       # Downloads Olist dataset from Kaggle API
 │   │   ├── build_features.py       # Full feature engineering pipeline
 │   │   └── seed_db.py              # Seeds PostgreSQL with processed data
 │   └── simulate/
@@ -804,10 +803,6 @@ When `DEMO_MODE=true`: population `50`, generations `100` (target < 5s response 
 
 ### Primary Dataset: Olist Brazilian E-Commerce
 
-**Manual placement:** Download Kaggle `olistbr/brazilian-ecommerce` manually and extract
-all CSV files into `data/raw/olist/`. The helper script `scripts/ingest/download_olist.py`
-exists only as an optional convenience when Kaggle credentials are configured.
-
 | Olist CSV File | ORCA Concept | Key Columns |
 |---|---|---|
 | `olist_orders_dataset.csv` | Shipment records | `order_id`, `order_status`, timestamps |
@@ -977,7 +972,6 @@ make dev-engine     # go run ./apps/orca-engine/main.go
 make dev-web        # cd apps/orca-web && pnpm dev
 
 # Data pipeline
-make download-data  # cd apps/orca-ai && uv run python ../../scripts/ingest/download_olist.py
 make build-features # cd apps/orca-ai && uv run python ../../scripts/ingest/build_features.py
 make seed-db        # cd apps/orca-ai && uv run python ../../scripts/ingest/seed_db.py
 

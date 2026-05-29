@@ -20,11 +20,13 @@ class Settings(BaseSettings):
     mlflow_model_name: str = "delay-predictor"
     mlflow_model_stage: str = "Production"
 
-    here_maps_api_key: str = ""
-    bmkg_api_base_url: str = "https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast"
+    open_meteo_api_url: str = "https://api.open-meteo.com/v1/forecast"
     fonnte_api_key: str = ""
     fonnte_api_url: str = "https://api.fonnte.com/send"
     alert_recipient_phone: str = ""
+    osmnx_graph_path: str = "../../data/processed/osmnx/west_java.graphml"
+    osmnx_place_name: str = "West Java, Indonesia"
+    osmnx_enable_download: bool = False
 
     alert_risk_threshold: float = 70.0
     # Amplifier for SLA risk formula. Calibrated models on imbalanced datasets

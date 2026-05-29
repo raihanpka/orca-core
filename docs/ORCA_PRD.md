@@ -52,7 +52,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Auditability | Prediksi, alert, dan carbon record yang tersimpan |
 | ESG reporting | Shipment dan aggregate CO2 analytics |
 | Controlled access | Public API token untuk endpoint yang diekspos; internal token untuk engine-only routes |
-| Integrasi yang scalable | REST API, WebSocket event stream, Redis event ingestion |
+| Integrasi yang scalable | REST API, SWR polling event stream, Redis event ingestion |
 | Cross-functional alignment | Kontrak API yang stabil untuk backend, web, ML, dan product design |
 
 # **5\. Goals**
@@ -132,7 +132,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Investigasi shipment | Baris high-risk dipilih | Lihat score, risk drivers, event terbaru, suggested action | Operator memahami mengapa shipment berisiko |
 | Bandingkan rute | Dispatcher membuka route optimizer | Masukkan stop, submit, review alternatif, pilih rute | Rute terbaik dipilih berdasarkan prioritas bisnis |
 | Review carbon | Sustainability officer membuka analytics | Review total CO2, grafik harian, vehicle breakdown | Pola emisi terlihat jelas |
-| Terima live alert | Engine mendeteksi high risk | Alert muncul di list atau WebSocket banner | Operator bereaksi tanpa refresh manual |
+| Terima live alert | Engine mendeteksi high risk | Alert muncul di list atau SWR polling banner | Operator bereaksi tanpa refresh manual |
 
 # **10\. Scope**
 
@@ -141,7 +141,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Area | Yang Termasuk |
 | :---- | :---- |
 | Backend API | FastAPI service dengan public dan internal routers |
-| Engine | Go Gin service dengan Redis subscription, DB persistence, WebSocket |
+| Engine | Python service dengan Redis subscription, DB persistence, SWR polling |
 | Database | PostgreSQL schema untuk shipments, predictions, alerts, carbon, hub metrics |
 | Cache dan events | Redis streams atau pubsub simulation flow |
 | Optimization | NSGA-II route optimization melalui pymoo |
@@ -181,7 +181,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | ML | Pelatihan dan kalibrasi model final ditangani oleh peran ML |
 | Security | REST API dan frontend harus tetap dapat diakses, tapi API call memerlukan token |
 | Network | PostgreSQL dan Redis tetap internal pada Docker network |
-| Tooling | Workflow Python dan ML menggunakan uv, frontend menggunakan pnpm, engine menggunakan Go 1.23 |
+| Tooling | Workflow Python dan ML menggunakan uv, frontend menggunakan pnpm, engine menggunakan Python 3.11 |
 | UI design | Mockup harus dapat digunakan untuk review enterprise dashboard, bukan landing page marketing |
 
 # **13\. Functional Requirements**
@@ -226,7 +226,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | FR-015 | Upsert live shipment sebelum prediction insert | Must | Prediction insert tidak gagal karena shipment FK yang hilang |
 | FR-016 | Simpan prediksi sekali | Must | Satu baris prediksi ditulis per event yang diproses |
 | FR-017 | Simpan carbon record | Must | Event flow membuat carbon record untuk analytics |
-| FR-018 | Broadcast WebSocket event | Must | UI dapat menerima update prediksi atau alert secara live |
+| FR-018 | Broadcast SWR polling event | Must | UI dapat menerima update prediksi atau alert secara live |
 | FR-019 | Publish hub metrics | Should | Hub dashboard dapat menampilkan metrik dwell dan congestion |
 
 ## **13.5 Route Optimization**
@@ -298,13 +298,11 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Navigation Item | Screen | Pertanyaan Utama yang Dijawab |
 | :---- | :---- | :---- |
 | Dashboard | Shipment overview | Shipment mana yang perlu perhatian sekarang? |
-| Shipments | Active shipment list | Apa status terkini setiap shipment? |
-| Shipment Detail | Individual shipment | Mengapa shipment ini berisiko? |
-| Route Optimizer | Route comparison | Rute mana yang terbaik untuk prioritas yang dipilih? |
-| Carbon | Sustainability analytics | Apa carbon footprint logistik kita? |
-| Hubs | Hub analytics | Hub mana yang menunjukkan sinyal congestion? |
-| Alerts | Alert history | Risiko apa yang sudah di-eskalasi? |
-| Settings | API token dan demo settings | Apakah UI terhubung ke backend yang benar? |
+| Optimizer | Route Optimizer | Rute mana yang memiliki tradeoff terbaik untuk SLA, Cost, dan CO2? |
+| Analytics | Carbon Dashboard | Seberapa besar emisi logistik kita hari ini? |
+| Hubs | Hub Status | Bagaimana kondisi antrean dan kepadatan hub lokal? |
+
+(Catatan: UI difokuskan pada 4 halaman utama untuk MVP: Dashboard, Hubs, Route Optimizer, dan Carbon Analytics. Layar tambahan seperti Shipment Detail view atau Alert view khusus ditiadakan/disederhanakan untuk MVP.)
 
 # **18\. Screen Requirements untuk UI/UX**
 
@@ -312,7 +310,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 
 | Component | Konten | Perilaku |
 | :---- | :---- | :---- |
-| Summary metric row | Active shipments, high-risk shipments, average risk, total CO2 | Update saat refresh dan WebSocket events |
+| Summary metric row | Active shipments, high-risk shipments, average risk, total CO2 | Update saat refresh dan SWR polling events |
 | Risk queue table | Shipment id, origin, destination, ETA, SLA deadline, risk badge, status | Sort berdasarkan risk tertinggi secara default |
 | Alert banner | Alert high-risk terbaru | Muncul hanya ketika alert terbaru ada |
 | Hub status strip | Hub id, dwell time, congestion score | Link ke hub analytics |
@@ -383,7 +381,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Rate limited | Tampilkan pesan retry tanpa merusak layout |
 | Partial data | Tampilkan field yang tersedia dan tandai nilai yang hilang sebagai "N/A" |
 | High risk | Gunakan label teks, icon, dan prioritas visual yang kuat |
-| Offline WebSocket | Tampilkan indikator disconnected yang pasif |
+| Offline API polling | Tampilkan indikator error network/terputus |
 
 # **20\. Design Principles**
 
@@ -419,7 +417,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Internal API | Engine-only routes memerlukan X-Internal-Token |
 | Redis | Hanya internal Docker network, tidak ada host port exposure |
 | PostgreSQL | Hanya internal Docker network, tidak ada host port exposure |
-| WebSocket | Permisif di development, origin allowlist di non-development |
+| HTTP CORS | Permisif di development, origin allowlist di non-development |
 | CORS | Tetap permisif untuk fleksibilitas frontend MVP |
 | Secrets | Hanya root .env, secret nyata tidak boleh di-commit |
 
@@ -465,7 +463,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Area | MVP Acceptance Criteria |
 | :---- | :---- |
 | API | Public endpoints berfungsi dengan token dan menolak token yang hilang |
-| Engine | Redis event dapat membuat shipment upsert, prediction row, carbon row, dan WebSocket broadcast |
+| Engine | Redis event dapat membuat shipment upsert, prediction row, carbon row, dan SWR polling broadcast |
 | Prediction | Internal prediction mengembalikan output deterministik bahkan jika production model tidak ada |
 | Dashboard data | Active shipment endpoint menghindari pola N+1 dan mendukung batch fallback |
 | Route | Route optimizer mengembalikan beberapa alternatif dengan tradeoff yang terukur |
@@ -482,7 +480,7 @@ Product gap yang ada bukan hanya soal perencanaan rute. Gap yang lebih besar ada
 | Route optimization kurang akurasi traffic live | Rekomendasi mungkin kurang realistis | Integrasikan HERE Maps atau data routing internal bila tersedia |
 | Estimasi carbon bersifat perkiraan | ESG reporting mungkin memerlukan metodologi yang lebih ketat | Dokumentasikan formula, sumber faktor, dan asumsi |
 | Statistik churn konsumen tidak bersumber primer | Klaim proposal bisa dipertanyakan | Gunakan insight reliabilitas yang terverifikasi atau temukan sumber langsung sebelum pitch |
-| Konfigurasi origin WebSocket memblokir lingkungan non-dev | Frontend mungkin gagal di staging | Pertahankan setup WS\_ALLOWED\_ORIGINS yang eksplisit di root .env |
+| Konfigurasi CORS asal memblokir lingkungan non-dev | Frontend mungkin gagal di staging | Pertahankan konfigurasi ALLOWED_ORIGINS yang eksplisit di root .env |
 
 # **28\. Validasi Riset dan Kesenjangan**
 

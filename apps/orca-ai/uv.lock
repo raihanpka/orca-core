@@ -2400,7 +2400,6 @@ dependencies = [
     { name = "asyncpg" },
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "jupyter" },
     { name = "kaggle" },
     { name = "lightgbm" },
     { name = "mlflow" },
@@ -2414,7 +2413,6 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "redis" },
     { name = "scikit-learn" },
-    { name = "seaborn" },
     { name = "shap" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -2426,13 +2424,17 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+notebook = [
+    { name = "jupyter" },
+    { name = "seaborn" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "asyncpg" },
     { name = "fastapi", specifier = "==0.111.*" },
     { name = "httpx" },
-    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "jupyter", marker = "extra == 'notebook'", specifier = ">=1.1.1" },
     { name = "kaggle" },
     { name = "lightgbm", specifier = ">=4" },
     { name = "mlflow", specifier = ">=2.13,<2.20" },
@@ -2450,11 +2452,11 @@ requires-dist = [
     { name = "redis", extras = ["asyncio"], specifier = ">=5" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "scikit-learn", specifier = ">=1.5" },
-    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "seaborn", marker = "extra == 'notebook'", specifier = ">=0.13.2" },
     { name = "shap", specifier = ">=0.45" },
     { name = "uvicorn", extras = ["standard"] },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "notebook"]
 
 [[package]]
 name = "osmnx"

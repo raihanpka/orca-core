@@ -5,14 +5,19 @@ RUN corepack enable
 
 FROM base AS builder
 WORKDIR /app
+ENV CI=true
 COPY apps/orca-web/package.json apps/orca-web/pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY apps/orca-web ./
-# Copy root .env so Next.js can bake NEXT_PUBLIC_ variables during build
-COPY .env ./.env
-# Disable deprecation warnings
+
+ARG NEXT_PUBLIC_API_BASE
+ARG NEXT_PUBLIC_POLL_INTERVAL_MS
+ARG NEXT_PUBLIC_API_TOKEN
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_POLL_INTERVAL_MS=$NEXT_PUBLIC_POLL_INTERVAL_MS
+ENV NEXT_PUBLIC_API_TOKEN=$NEXT_PUBLIC_API_TOKEN
 ENV NODE_OPTIONS='--no-deprecation'
-RUN pnpm build
+RUN npx next build
 
 FROM base AS runner
 WORKDIR /app

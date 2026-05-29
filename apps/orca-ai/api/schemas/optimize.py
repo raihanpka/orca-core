@@ -25,6 +25,7 @@ class ParetoSolution(BaseModel):
     label: str
     stops_order: list[str]
     route_geometry: dict
+    distance_source: str = "haversine_fallback"
     travel_time_min: int
     co2_kg: float
     fuel_cost_idr: int

@@ -5,11 +5,11 @@ services:
       POSTGRES_USER: orca
       POSTGRES_PASSWORD: orca_pass
       POSTGRES_DB: orca_db
-    ports:
-      - "5437:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
     networks: [orca-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
@@ -19,8 +19,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
     networks: [orca-net]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -30,6 +28,7 @@ services:
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.13.0
+    profiles: ["ml"]
     command: mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri /mlruns
     ports: ["5001:5001"]
     volumes: ["./mlruns:/mlruns"]
@@ -37,34 +36,66 @@ services:
 
   orca-ai:
     build: ./apps/orca-ai
-    ports: ["8000:8000"]
-    env_file: ./.env
+    ports: ["8010:8000"]
+    volumes: ["./data:/data"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: ${APP_PORT:-8000}
+      DEBUG: ${DEBUG:-true}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://orca:orca_pass@postgres:5432/orca_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      PREDICTION_CACHE_TTL_SECONDS: ${PREDICTION_CACHE_TTL_SECONDS:-900}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-orca-internal-local-token}
+      PUBLIC_API_TOKEN: ${PUBLIC_API_TOKEN:-orca-public-local-token}
+      PUBLIC_RATE_LIMIT_PER_MINUTE: ${PUBLIC_RATE_LIMIT_PER_MINUTE:-120}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5001}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-delay-predictor}
+      MLFLOW_MODEL_STAGE: ${MLFLOW_MODEL_STAGE:-Production}
+      OPEN_METEO_API_URL: ${OPEN_METEO_API_URL:-https://api.open-meteo.com/v1/forecast}
+      FONNTE_API_KEY: ${FONNTE_API_KEY:-}
+      FONNTE_API_URL: ${FONNTE_API_URL:-https://api.fonnte.com/send}
+      ALERT_RECIPIENT_PHONE: ${ALERT_RECIPIENT_PHONE:-}
+      OSMNX_GRAPH_PATH: ${OSMNX_GRAPH_PATH:-../../data/processed/osmnx/jabodetabek.graphml}
+      OSMNX_PLACE_NAME: ${OSMNX_PLACE_NAME:-Jakarta, Indonesia}
+      OSMNX_ENABLE_DOWNLOAD: ${OSMNX_ENABLE_DOWNLOAD:-false}
+      ALERT_RISK_THRESHOLD: ${ALERT_RISK_THRESHOLD:-70.0}
+      SLA_RISK_AMPLIFIER: ${SLA_RISK_AMPLIFIER:-4.0}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      NSGA2_POPULATION_SIZE: ${NSGA2_POPULATION_SIZE:-50}
+      NSGA2_GENERATIONS: ${NSGA2_GENERATIONS:-100}
+      KAGGLE_USERNAME: ${KAGGLE_USERNAME:-}
+      KAGGLE_KEY: ${KAGGLE_KEY:-}
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-      mlflow: {condition: service_started}
     networks: [orca-net]
-
-  orca-engine:
-    build: ./apps/orca-engine
-    ports: ["9090:9090"]
-    env_file: ./.env
-    depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
-      orca-ai: {condition: service_started}
-    networks: [orca-net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   orca-web:
     build:
       context: .
       dockerfile: ./apps/orca-web/Dockerfile
-    ports: ["3000:3000"]
-    env_file: ./.env
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8010}
+        NEXT_PUBLIC_POLL_INTERVAL_MS: ${NEXT_PUBLIC_POLL_INTERVAL_MS:-15000}
+        NEXT_PUBLIC_API_TOKEN: ${NEXT_PUBLIC_API_TOKEN:-change_me_for_public_api}
+    ports: ["3010:3000"]
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8010}
+      NEXT_PUBLIC_POLL_INTERVAL_MS: ${NEXT_PUBLIC_POLL_INTERVAL_MS:-15000}
+      NEXT_PUBLIC_API_TOKEN: ${NEXT_PUBLIC_API_TOKEN:-change_me_for_public_api}
     depends_on:
-      orca-ai: {condition: service_started}
-      orca-engine: {condition: service_started}
+      orca-ai: {condition: service_healthy}
     networks: [orca-net]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

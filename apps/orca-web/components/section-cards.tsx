@@ -46,10 +46,10 @@ export function SectionCards({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Redis event stream ready <TrendingUpIcon className="size-4" />
+            Live operations data <TrendingUpIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Polling fallback remains active for MVP
+            Actively tracked in real-time
           </div>
         </CardFooter>
       </Card>
@@ -68,10 +68,10 @@ export function SectionCards({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Risk queue needs attention <TrendingUpIcon className="size-4" />
+            Requires dispatcher triage <TrendingUpIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Sorted by SLA risk for dispatcher triage
+            Risk score &gt;= 70% threshold
           </div>
         </CardFooter>
       </Card>
@@ -79,21 +79,21 @@ export function SectionCards({
         <CardHeader className="relative">
           <CardDescription>Average SLA Risk</CardDescription>
           <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {formatNumber(averageRisk, 0)}
+            {formatNumber(averageRisk, 0)}%
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
               <TrendingDownIcon className="size-3" />
-              Target 40
+              Target 40%
             </Badge>
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Risk score is model-ready <TrendingUpIcon className="size-4" />
+            Overall fleet health <TrendingUpIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Uses fallback until ML training is done
+            Based on active shipment predictions
           </div>
         </CardFooter>
       </Card>
@@ -112,10 +112,10 @@ export function SectionCards({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Shipment-level CO2 is persisted <TrendingUpIcon className="size-4" />
+            Total fleet emissions <TrendingUpIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Ready for ESG dashboard drilldown
+            Calculated using GLEC methodology
           </div>
         </CardFooter>
       </Card>

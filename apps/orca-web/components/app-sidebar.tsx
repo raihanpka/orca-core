@@ -31,35 +31,30 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Raihan Putra Kirana",
+    email: "me@raihanpk.com",
     avatar: "",
   },
   navMain: [
     {
-      title: "Overview",
+      title: "Operations",
       url: "/",
       icon: <LayoutDashboardIcon />,
+    },
+    {
+      title: "Optimizer",
+      url: "/optimize",
+      icon: <WaypointsIcon />,
+    },
+    {
+      title: "Analytics",
+      url: "/analytics",
+      icon: <ChartBarIcon />,
     },
     {
       title: "Alerts",
       url: "/alerts",
       icon: <BellIcon />,
-    },
-    {
-      title: "Hubs",
-      url: "/hubs",
-      icon: <MapIcon />,
-    },
-    {
-      title: "Optimize",
-      url: "/optimize",
-      icon: <WaypointsIcon />,
-    },
-    {
-      title: "Carbon",
-      url: "/carbon",
-      icon: <LeafIcon />,
     },
   ],
   navSecondary: [

@@ -1,4 +1,3 @@
-import math
 import time
 from datetime import datetime, timezone
 
@@ -9,10 +8,7 @@ from pymoo.optimize import minimize
 
 from api.schemas.optimize import DeliveryStop
 from core.config import get_settings
-
-
-def _distance(a: tuple[float, float], b: tuple[float, float]) -> float:
-    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) * 111
+from ml.osmnx_provider import RoadNetworkProvider, get_road_network_provider
 
 
 def _emission_factor(vehicle_type: str) -> float:
@@ -29,13 +25,21 @@ def _origin_for_hub(origin_hub: str) -> tuple[float, float]:
 
 
 class RoutingProblem(Problem):
-    def __init__(self, stops: list[DeliveryStop], vehicle_type: str, load_weight_kg: float, origin_hub: str):
+    def __init__(
+        self,
+        stops: list[DeliveryStop],
+        vehicle_type: str,
+        load_weight_kg: float,
+        origin_hub: str,
+        road_network: RoadNetworkProvider,
+    ):
         super().__init__(n_var=len(stops), n_obj=4, n_ieq_constr=1, xl=0.0, xu=1.0)
         self.stops = stops
         self.vehicle_type = vehicle_type
         self.load_weight_kg = load_weight_kg
         self.origin = _origin_for_hub(origin_hub)
         self.factor = _emission_factor(vehicle_type)
+        self.road_network = road_network
 
     def _evaluate(self, x, out, *args, **kwargs):
         objectives = []
@@ -54,14 +58,16 @@ class RoutingProblem(Problem):
         out["F"] = np.array(objectives, dtype=float)
         out["G"] = np.array(constraints, dtype=float)
 
-    def metrics_for_order(self, order: np.ndarray) -> dict:
+    def metrics_for_order(self, order: np.ndarray, include_geometry: bool = False) -> dict:
         total_km = 0.0
         cursor = self.origin
         ordered_stops = [self.stops[int(index)] for index in order]
+        route_points = [self.origin]
         for stop in ordered_stops:
             point = (stop.destination_lat, stop.destination_lng)
-            total_km += _distance(cursor, point)
+            total_km += self.road_network.distance_km(cursor, point)
             cursor = point
+            route_points.append(point)
 
         traffic_multiplier = 1.25
         travel_time_min = max(1, int(total_km / 35 * 60 * traffic_multiplier))
@@ -70,15 +76,18 @@ class RoutingProblem(Problem):
         latest_deadline = min(stop.sla_deadline for stop in ordered_stops)
         remaining_min = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 60
         sla_risk = 100.0 if travel_time_min > remaining_min else min(65.0, travel_time_min / max(remaining_min, 1) * 50)
-        geometry_coordinates = [[self.origin[1], self.origin[0]]] + [
-            [stop.destination_lng, stop.destination_lat] for stop in ordered_stops
-        ]
+        geometry_coordinates = (
+            self.road_network.route_coordinates(route_points)
+            if include_geometry
+            else [[lng, lat] for lat, lng in route_points]
+        )
         return {
             "stops_order": [stop.shipment_id for stop in ordered_stops],
             "route_geometry": {
                 "type": "LineString",
                 "coordinates": geometry_coordinates,
             },
+            "distance_source": self.road_network.last_source,
             "travel_time_min": travel_time_min,
             "co2_kg": co2_kg,
             "fuel_cost_idr": fuel_cost_idr,
@@ -112,7 +121,13 @@ async def optimize_route(stops: list[DeliveryStop], vehicle_type: str, load_weig
         pop_size = settings.nsga2_population_size
         n_gen = settings.nsga2_generations
 
-    problem = RoutingProblem(stops, vehicle_type, load_weight_kg)
+    problem = RoutingProblem(
+        stops,
+        vehicle_type,
+        load_weight_kg,
+        origin_hub,
+        get_road_network_provider(),
+    )
     algorithm = NSGA2(pop_size=pop_size)
     result = minimize(
         problem,
@@ -126,7 +141,7 @@ async def optimize_route(stops: list[DeliveryStop], vehicle_type: str, load_weig
     seen: set[tuple[str, ...]] = set()
     solutions = []
     for row in rows:
-        metrics = problem.metrics_for_order(np.argsort(row))
+        metrics = problem.metrics_for_order(np.argsort(row), include_geometry=True)
         key = tuple(metrics["stops_order"])
         if key in seen:
             continue
@@ -138,7 +153,7 @@ async def optimize_route(stops: list[DeliveryStop], vehicle_type: str, load_weig
             break
 
     if not solutions:
-        metrics = problem.metrics_for_order(np.arange(len(stops)))
+        metrics = problem.metrics_for_order(np.arange(len(stops)), include_geometry=True)
         metrics["index"] = 0
         metrics["label"] = "balanced"
         solutions.append(metrics)

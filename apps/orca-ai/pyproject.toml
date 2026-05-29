@@ -21,12 +21,11 @@ dependencies = [
   "osmnx>=1.9",
   "python-dotenv",
   "kaggle",
-  "jupyter>=1.1.1",
-  "seaborn>=0.13.2",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio", "pytest-cov", "ruff"]
+notebook = ["jupyter>=1.1.1", "seaborn>=0.13.2"]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

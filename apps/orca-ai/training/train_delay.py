@@ -158,6 +158,12 @@ def main() -> None:
     calibration_plot_path = PROCESSED / "calibration_curve.png"
     _plot_calibration_curve(calibrated_clf, X, y, calibration_plot_path)
 
+    # Save a direct .pkl model for fallback / non-MLflow environments
+    model_pkl_path = PROCESSED / "model.pkl"
+    with open(model_pkl_path, "wb") as f:
+        pickle.dump(calibrated_clf, f)
+    logger.info("Saved raw pickle model to %s", model_pkl_path)
+
     # Feature metadata — loaded by mlflow_client for contract validation.
     feature_meta = {
         "feature_columns": FEATURE_COLUMNS,

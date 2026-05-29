@@ -18,6 +18,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("orca-ai")
 
 
+import asyncio
+from core.subscriber import run_subscriber
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -30,10 +33,17 @@ async def lifespan(app: FastAPI):
         app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         await app.state.redis.ping()
         logger.info("Redis connected")
+        
+        # Start subscriber
+        app.state.subscriber_task = asyncio.create_task(run_subscriber(app))
     except Exception as exc:
         app.state.redis = None
         logger.warning("Redis unavailable; cache disabled: %s", exc)
+    
     yield
+    
+    if hasattr(app.state, "subscriber_task"):
+        app.state.subscriber_task.cancel()
     if app.state.db_pool is not None:
         await app.state.db_pool.close()
     if app.state.redis is not None:
