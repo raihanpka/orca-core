@@ -39,6 +39,15 @@ CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
 CREATE INDEX IF NOT EXISTS idx_shipments_hub ON shipments(origin_hub_id);
 CREATE INDEX IF NOT EXISTS idx_shipments_sla ON shipments(sla_deadline) WHERE status = 'in_transit';
 
+CREATE TABLE IF NOT EXISTS shipment_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shipment_id UUID NOT NULL REFERENCES shipments(id),
+  event_type VARCHAR(50) NOT NULL,
+  event_payload JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_shipment_events_shipment ON shipment_events(shipment_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS shipment_predictions (
   time TIMESTAMPTZ NOT NULL,
   shipment_id UUID NOT NULL REFERENCES shipments(id),

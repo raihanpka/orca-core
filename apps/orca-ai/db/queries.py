@@ -73,6 +73,22 @@ async def get_shipment(pool, shipment_id: str):
     )
 
 
+async def get_shipment_events(pool, shipment_id: str, limit: int = 20):
+    if pool is None:
+        return []
+    return await pool.fetch(
+        """
+        SELECT id, shipment_id, event_type, event_payload, created_at
+        FROM shipment_events
+        WHERE shipment_id = $1::uuid
+        ORDER BY created_at DESC
+        LIMIT $2
+        """,
+        shipment_id,
+        limit,
+    )
+
+
 async def upsert_prediction_cache(pool, shipment_id: str, prediction: dict[str, Any], features: dict[str, Any] | None = None):
     if pool is None:
         return
