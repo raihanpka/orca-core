@@ -1,88 +1,49 @@
 UV ?= uv
 PNPM ?= pnpm
 
-.PHONY: install infra-up infra-down dev dev-ml dev-down dev-ai dev-engine dev-web download-data download-delhivery build-features build-delhivery seed-db train evaluate validate-shap evaluate-segments evaluate-full setup-osmnx simulate test test-ai test-engine clean
+.PHONY: install install-ai install-web build up down restart ps logs dev-ai dev-web test test-ai test-web seed-db clean
 
-install:
+install: install-ai install-web
+
+install-ai:
 	cd apps/orca-ai && $(UV) sync --extra dev
-	cd apps/orca-engine && go mod download
-	cd apps/orca-web && $(PNPM) install
 
-infra-up:
-	docker compose up -d postgres redis mlflow
+install-web:
+	cd apps/orca-web && $(PNPM) install --ignore-workspace
 
-infra-down:
+build:
+	docker compose build
+
+up:
+	docker compose up -d --build
+
+down:
 	docker compose down
 
-dev:
-	docker compose up -d
+restart: down up
 
-dev-ml:
-	docker compose up -d postgres redis mlflow orca-ai orca-engine
+ps:
+	docker compose ps
 
-dev-down:
-	docker compose down
+logs:
+	docker compose logs -f orca-ai orca-web
 
 dev-ai:
-	cd apps/orca-ai && $(UV) run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-dev-engine:
-	cd apps/orca-engine && go run .
+	cd apps/orca-ai && $(UV) run uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 dev-web:
-	cd apps/orca-web && $(PNPM) dev
+	cd apps/orca-web && $(PNPM) dev -- -p 3001
 
-download-data:
-	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/download_olist.py
+test: test-ai test-web
 
-download-delhivery:
-	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/download_delhivery.py
+test-ai:
+	cd apps/orca-ai && $(UV) run --extra dev pytest
 
-build-features:
-	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/build_features.py
-
-build-delhivery:
-	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/build_delhivery_features.py
-
-setup-osmnx:
-	cd apps/orca-ai && $(UV) run python ../../scripts/setup/download_jakarta_graph.py
+test-web:
+	cd apps/orca-web && $(PNPM) build
 
 seed-db:
 	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/seed_db.py
 
-train:
-	cd apps/orca-ai && $(UV) run python training/train_delay.py
-
-evaluate:
-	cd apps/orca-ai && $(UV) run python training/evaluate.py
-
-validate-shap:
-	cd apps/orca-ai && $(UV) run python training/validate_shap.py
-
-evaluate-segments:
-	cd apps/orca-ai && $(UV) run python training/evaluate_segments.py
-
-evaluate-full: evaluate validate-shap evaluate-segments
-	@echo ""
-	@echo "==============================================================="
-	@echo "  COMPREHENSIVE EVALUATION COMPLETE"
-	@echo "  Artifacts in data/processed/:"
-	@echo "    - evaluation_plot.png      (Lapis 1-2: confusion + ROC + calibration)"
-	@echo "    - shap_summary.png         (Lapis 3: feature attribution)"
-	@echo "    - evaluation_segments.json (Lapis 4-5: segments + business impact)"
-	@echo "    - optimal_threshold.json   (Production threshold metadata)"
-	@echo "==============================================================="
-
-simulate:
-	cd apps/orca-ai && $(UV) run python ../../scripts/simulate/stream_replay.py
-
-test: test-ai test-engine
-
-test-ai:
-	cd apps/orca-ai && $(UV) run pytest --cov=.
-
-test-engine:
-	cd apps/orca-engine && go test ./...
-
 clean:
-	rm -rf apps/orca-ai/.pytest_cache apps/orca-ai/.coverage apps/orca-ai/**/__pycache__ data/processed/*.parquet data/processed/*.pkl data/processed/*.png data/processed/*.json
+	rm -rf apps/orca-ai/.pytest_cache apps/orca-ai/.coverage apps/orca-web/.next

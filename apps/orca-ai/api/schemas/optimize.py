@@ -18,6 +18,7 @@ class OptimizeRouteRequest(BaseModel):
     origin_hub_id: str
     delivery_stops: list[DeliveryStop] = Field(min_length=1, max_length=10)
     current_traffic_level: str = "normal"
+    routing_engine: str = "osmnx"
 
 
 class ParetoSolution(BaseModel):
@@ -25,6 +26,7 @@ class ParetoSolution(BaseModel):
     label: str
     stops_order: list[str]
     route_geometry: dict
+    distance_source: str = "haversine_fallback"
     travel_time_min: int
     co2_kg: float
     fuel_cost_idr: int

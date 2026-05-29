@@ -2,13 +2,18 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Query, Request
+import uuid
+from fastapi import APIRouter, Query, Request, HTTPException
+from api.schemas.shipment import CreateShipmentRequest
 
 from api.schemas.common import ok
+from core.config import get_settings
 from db.queries import (
+    bulk_insert_alerts,
     bulk_insert_carbon_records,
     bulk_insert_prediction_cache,
     get_active_shipments,
+    get_hub_historical_rates,
     get_latest_prediction,
     get_shipment_events,
 )
@@ -18,18 +23,29 @@ from ml.sla_scorer import compute_sla_risk
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
 
+async def _get_cached_hub_rates(hub_id: str, request: Request) -> dict[str, float]:
+    redis = request.app.state.redis
+    cache_key = f"orca:cache:hub_rates:{hub_id}"
+    
+    if redis:
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception:
+            pass
+            
+    rates = await get_hub_historical_rates(request.app.state.db_pool, hub_id)
+    
+    if redis:
+        try:
+            await redis.set(cache_key, json.dumps(rates), ex=1800) # Cache for 30m
+        except Exception:
+            pass
+            
+    return rates
 
-def _intervention(score: float | None) -> str | None:
-    if score is None:
-        return None
-    if score >= 70:
-        return "reroute_via_toll"
-    if score >= 40:
-        return "notify_customer_proactively"
-    return "monitor"
-
-
-def _features_from_shipment(row) -> dict:
+def _features_from_shipment(row, historical_rates: dict | None = None) -> dict:
     dispatched = row["dispatched_at"] or row["created_at"]
     now = datetime.now(timezone.utc)
     deadline = row["sla_deadline"]
@@ -37,6 +53,9 @@ def _features_from_shipment(row) -> dict:
         deadline = deadline.replace(tzinfo=timezone.utc)
     if dispatched is not None and dispatched.tzinfo is None:
         dispatched = dispatched.replace(tzinfo=timezone.utc)
+    
+    rates = historical_rates or {"delay_rate": 0.0, "avg_dwell_min": 120.0}
+    
     return {
         "shipment_id": str(row["id"]),
         "distance_km": float(row["distance_km"] or 30.0),
@@ -47,8 +66,8 @@ def _features_from_shipment(row) -> dict:
         "hour_of_day": dispatched.hour if dispatched else now.hour,
         "hub_zone": row["origin_hub_id"].split("_")[-1],
         "weather_severity_score": 0.0,
-        "historical_hub_delay_rate": 0.0,
-        "historical_driver_rate": 1.0,
+        "historical_hub_delay_rate": rates["delay_rate"],
+        "historical_driver_rate": 1.0, # TODO: Track per-driver performance
         "item_count": int(row["item_count"] or 1),
         "product_weight_g": float(row["load_weight_kg"] or 1.0) * 1000,
         "remaining_hours_to_sla": (deadline - now).total_seconds() / 3600,
@@ -61,15 +80,40 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
         request.app.state.label_encoder,
         request.app.state.model_version,
     )
+    # Opt #7: read amplifier once per batch instead of per-row get_settings() calls.
+    amplifier = get_settings().sla_risk_amplifier
+    
+    from services.weather import OpenMeteoClient
+    weather_client = OpenMeteoClient(get_settings().open_meteo_api_url, request.app.state.redis)
+    
     fallback_by_id = {}
     prediction_records = []
     carbon_records = []
+    alert_records = []
+    
+    # Pre-fetch historical rates for all hubs in this batch
+    unique_hubs = {row["origin_hub_id"] for row in rows if row["delay_probability"] is None}
+    hub_rates_map = {hub_id: await _get_cached_hub_rates(hub_id, request) for hub_id in unique_hubs}
+
     for row in rows:
         if row["delay_probability"] is not None:
             continue
-        features = _features_from_shipment(row)
+        
+        features = _features_from_shipment(row, historical_rates=hub_rates_map.get(row["origin_hub_id"]))
+        
+        # Real weather integration
+        if "customer_lat" in row and "customer_lng" in row:
+            try:
+                features["weather_severity_score"] = await weather_client.weather_severity(row["customer_lat"], row["customer_lng"])
+            except Exception:
+                features["weather_severity_score"] = 0.0
+            
         prediction = predictor.predict(features)
-        risk_score, _ = compute_sla_risk(prediction["delay_probability"], features["remaining_hours_to_sla"])
+        risk_score, _ = compute_sla_risk(
+            prediction["delay_probability"],
+            features["remaining_hours_to_sla"],
+            amplifier=amplifier,
+        )
         shipment_id = str(row["id"])
         payload = {
             "shipment_id": shipment_id,
@@ -81,9 +125,12 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
         fallback_by_id[shipment_id] = payload
         prediction_records.append((shipment_id, payload, features))
         carbon_records.append((shipment_id, features["distance_km"], float(row["load_weight_kg"] or 1.0), row["vehicle_type"]))
+        if risk_score >= 70.0:
+            alert_records.append((shipment_id, risk_score, "Dispatch via Alternate Route"))
 
     await bulk_insert_prediction_cache(request.app.state.db_pool, prediction_records)
     await bulk_insert_carbon_records(request.app.state.db_pool, carbon_records)
+    await bulk_insert_alerts(request.app.state.db_pool, alert_records)
     return fallback_by_id
 
 
@@ -113,13 +160,18 @@ def _fallback_contributions(features: dict) -> list[dict]:
     return sorted(contributions, key=lambda item: abs(item["contribution"]), reverse=True)[:5]
 
 
-def _shap_contributions(model, label_encoder, features: dict) -> list[dict]:
+def _shap_contributions(explainer: object | None, model: object, label_encoder: object, features: dict) -> list[dict]:
+    """Compute SHAP feature contributions using the pre-built cached explainer.
+
+    Falls back to the rule-based _fallback_contributions if the explainer is
+    unavailable or SHAP raises an unexpected error.
+    """
+    if explainer is None:
+        return _fallback_contributions(features)
     try:
         import shap
-
         vector = build_feature_vector(features, label_encoder)
         row = pd.DataFrame([[vector[column] for column in FEATURE_COLUMNS]], columns=FEATURE_COLUMNS)
-        explainer = shap.Explainer(model.predict_proba, row)
         values = explainer(row)
         shap_values = values.values
         if shap_values.ndim == 3:
@@ -137,6 +189,60 @@ def _shap_contributions(model, label_encoder, features: dict) -> list[dict]:
         ]
     except Exception:
         return _fallback_contributions(features)
+from api.routers.hubs import HUB_DATA
+
+@router.post("/", response_model=dict)
+
+async def create_shipment(req: CreateShipmentRequest, request: Request):
+    now = datetime.now(timezone.utc)
+    
+    if req.sla_deadline.replace(tzinfo=timezone.utc) < now:
+        raise HTTPException(status_code=400, detail="SLA deadline cannot be in the past")
+        
+    hub_coords = HUB_COORDS.get(req.origin_hub_id)
+    if not hub_coords:
+        raise HTTPException(status_code=400, detail="Invalid origin_hub_id")
+        
+    import asyncio
+    # Automatic distance calculation using graphml/pkl
+    provider = request.app.state.road_provider
+    distance_km = await asyncio.to_thread(provider.distance_km, hub_coords, (req.customer_lat, req.customer_lng))
+    
+    shipment_id = uuid.uuid4()
+    ext_id = req.external_id or f"MNL-{shipment_id.hex[:8]}"
+    
+    async with request.app.state.db_pool.acquire() as conn:
+        # Insert shipment
+        await conn.execute(
+            """
+            INSERT INTO shipments (
+              id, external_id, origin_hub_id, destination_zone, 
+              customer_lat, customer_lng, vehicle_type,
+              load_weight_kg, item_count, sla_deadline, dispatched_at, status, distance_km
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'in_transit', $12)
+            """,
+            shipment_id, ext_id, req.origin_hub_id,
+            req.destination_zone, req.customer_lat, req.customer_lng, req.vehicle_type,
+            req.load_weight_kg, req.item_count, req.sla_deadline, now, distance_km
+        )
+        
+    # Trigger prediction caching automatically for this manual shipment
+    row = {
+        "id": shipment_id,
+        "dispatched_at": now,
+        "created_at": now,
+        "sla_deadline": req.sla_deadline,
+        "distance_km": distance_km,
+        "origin_hub_id": req.origin_hub_id,
+        "item_count": req.item_count,
+        "load_weight_kg": req.load_weight_kg,
+        "vehicle_type": req.vehicle_type,
+        "delay_probability": None
+    }
+    await _batch_fallback_predictions(request, [row])
+    
+    return ok({"shipment_id": str(shipment_id), "distance_km": distance_km, "message": "Shipment created successfully"})
 
 
 @router.get("/active")
@@ -183,6 +289,8 @@ async def active_shipments(
                 "sla_risk_score": risk,
                 "predicted_delay_hours": predicted_delay_hours,
                 "co2_kg": float(row["co2_kg"]) if row["co2_kg"] is not None else None,
+                "distance_km": float(row["distance_km"]) if row["distance_km"] is not None else None,
+                "load_weight_kg": float(row["load_weight_kg"]) if row["load_weight_kg"] is not None else None,
                 "status": row["status"],
                 "intervention_recommended": _intervention(risk),
             }
@@ -206,7 +314,16 @@ async def shipment_prediction(shipment_id: str, request: Request):
             }
         )
     features = prediction["features_json"] or {}
-    shap_values = _shap_contributions(request.app.state.delay_model, request.app.state.label_encoder, features) if features else []
+    shap_values = (
+        _shap_contributions(
+            request.app.state.shap_explainer,
+            request.app.state.delay_model,
+            request.app.state.label_encoder,
+            features,
+        )
+        if features
+        else []
+    )
     risk = float(prediction["sla_risk_score"])
     return ok(
         {

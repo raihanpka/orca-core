@@ -10,7 +10,6 @@ Usage (from repo root):
     cd apps/orca-ai && uv run python training/evaluate.py
 """
 
-import io
 import logging
 import os
 import sys
@@ -18,11 +17,6 @@ import warnings
 from pathlib import Path
 
 warnings.filterwarnings("ignore", message="X does not have valid feature names")
-
-# Windows cp1252 terminals cannot encode MLflow's emoji output — force UTF-8.
-if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 import matplotlib
 import mlflow

@@ -137,6 +137,53 @@ async def bulk_insert_prediction_cache(pool, records: list[tuple[str, dict[str, 
     )
 
 
+async def bulk_insert_alerts(pool, records: list[tuple[str, float, str]]) -> None:
+    if pool is None or not records:
+        return
+    # Use executemany, but prevent duplicates within the last 2 hours.
+    # PostgreSQL executemany doesn't support RETURNING, but we can do a simple loop 
+    # or an INSERT with a WHERE NOT EXISTS logic.
+    # To keep it simple, we'll do an execute for each, or construct a batched query.
+    for shipment_id, risk_score, intervention in records:
+        await pool.execute(
+            """
+            INSERT INTO alert_logs (shipment_id, alert_type, sla_risk_score, intervention, notified_via)
+            SELECT $1::uuid, 'sla_risk', $2, $3, '{}'
+            WHERE NOT EXISTS (
+                SELECT 1 FROM alert_logs 
+                WHERE shipment_id = $1::uuid AND alert_type = 'sla_risk' AND created_at >= NOW() - INTERVAL '2 hours'
+            )
+            """,
+            shipment_id, risk_score, intervention
+        )
+
+async def get_hub_historical_rates(pool, hub_id: str) -> dict[str, float]:
+    if pool is None:
+        return {"delay_rate": 0.0, "avg_dwell_min": 120.0}
+    
+    row = await pool.fetchrow(
+        """
+        SELECT 
+            AVG(delay_rate) as delay_rate,
+            AVG(avg_dwell_time_min) as avg_dwell_min
+        FROM (
+            SELECT delay_rate, avg_dwell_time_min
+            FROM hub_metrics
+            WHERE hub_id = $1
+            ORDER BY time DESC
+            LIMIT 100
+        ) sub
+        """,
+        hub_id,
+    )
+    if not row or row["delay_rate"] is None:
+        return {"delay_rate": 0.0, "avg_dwell_min": 120.0}
+        
+    return {
+        "delay_rate": float(row["delay_rate"]),
+        "avg_dwell_min": float(row["avg_dwell_min"]),
+    }
+
 async def bulk_insert_carbon_records(pool, records: list[tuple[str, float, float, str]]) -> None:
     if pool is None or not records:
         return
@@ -149,13 +196,13 @@ async def bulk_insert_carbon_records(pool, records: list[tuple[str, float, float
         SELECT
           $1::uuid,
           $2,
-          ROUND(($2::numeric * ($3::numeric / 1000.0) * emission_factor)::numeric, 4),
-          $4,
+          ROUND(($2::numeric * (1.0 + ($3::numeric / 1000.0)) * emission_factor)::numeric, 4),
+          $4::varchar,
           ROUND(($3::numeric / 1000.0)::numeric, 4),
           emission_factor,
           glec_version
         FROM glec_emission_factors
-        WHERE vehicle_type = $4
+        WHERE vehicle_type = $4::varchar
         ON CONFLICT (shipment_id) DO NOTHING
         """,
         records,

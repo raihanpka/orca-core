@@ -74,7 +74,7 @@ orca-engine (Go :9090)           <-- Real-time shipment state machine, streaming
         |
         | Redis Pub/Sub (internal only, no host port exposure)
         v
-Redis (:6379) - internal only    <-- Prediction cache, SLA score cache, pub/sub broker
+Redis (:6380) - internal only    <-- Prediction cache, SLA score cache, pub/sub broker
         |
         v
 PostgreSQL + TimescaleDB (:5432) <-- Shipment records, predictions, carbon records,
@@ -117,7 +117,7 @@ networks:
 
 services:
   postgres:  # No ports: key - host cannot reach 5432 directly
-  redis:     # No ports: key - host cannot reach 6379 directly
+  redis:     # No ports: key - host cannot reach 6380 directly
   orca-ai:   # ports: ["8000:8000"]
   orca-engine: # ports: ["9090:9090"]
   orca-web:  # ports: ["3000:3000"]
@@ -303,7 +303,6 @@ orca/
 │
 ├── scripts/
 │   ├── ingest/
-│   │   ├── download_olist.py       # Downloads Olist dataset from Kaggle API
 │   │   ├── build_features.py       # Full feature engineering pipeline
 │   │   └── seed_db.py              # Seeds PostgreSQL with processed data
 │   └── simulate/
@@ -804,10 +803,6 @@ When `DEMO_MODE=true`: population `50`, generations `100` (target < 5s response 
 
 ### Primary Dataset: Olist Brazilian E-Commerce
 
-**Manual placement:** Download Kaggle `olistbr/brazilian-ecommerce` manually and extract
-all CSV files into `data/raw/olist/`. The helper script `scripts/ingest/download_olist.py`
-exists only as an optional convenience when Kaggle credentials are configured.
-
 | Olist CSV File | ORCA Concept | Key Columns |
 |---|---|---|
 | `olist_orders_dataset.csv` | Shipment records | `order_id`, `order_status`, timestamps |
@@ -920,8 +915,8 @@ DEBUG=true
 
 DATABASE_URL=postgresql://orca:orca_pass@postgres:5432/orca_db
 DEV_DATABASE_URL=postgresql://orca:orca_pass@localhost:5432/orca_db
-REDIS_URL=redis://redis:6379
-DEV_REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://redis:6380
+DEV_REDIS_URL=redis://localhost:6380
 PREDICTION_CACHE_TTL_SECONDS=900
 INTERNAL_API_TOKEN=change_me_for_local_dev
 PUBLIC_API_TOKEN=change_me_for_public_api
@@ -977,7 +972,6 @@ make dev-engine     # go run ./apps/orca-engine/main.go
 make dev-web        # cd apps/orca-web && pnpm dev
 
 # Data pipeline
-make download-data  # cd apps/orca-ai && uv run python ../../scripts/ingest/download_olist.py
 make build-features # cd apps/orca-ai && uv run python ../../scripts/ingest/build_features.py
 make seed-db        # cd apps/orca-ai && uv run python ../../scripts/ingest/seed_db.py
 

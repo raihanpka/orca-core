@@ -1,0 +1,45 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+README.md
+docs/
+.docs/
+Makefile
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+.next/
+out/
+build/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+
+# Data
+data/raw/
+data/processed/
+mlruns/
+*.sqlite
+*.db
+
+# OS
+.DS_Store
+Thumbs.db

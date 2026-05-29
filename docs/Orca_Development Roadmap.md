@@ -13,8 +13,8 @@
 - [Product Requirement Document](#product-requirement-document)
 - [Day 1: Infrastructure, Monorepo, and Data Pipeline](#day-1-infrastructure-monorepo-and-data-pipeline)
 - [Day 2: ML Training, Python API Core](#day-2-ml-training-python-api-core)
-- [Day 3: Go Engine, Alert System, API Completion](#day-3-go-engine-alert-system-api-completion)
-- [Day 4: Next.js Dashboard, WebSocket, Demo Scenarios](#day-4-nextjs-dashboard-websocket-demo-scenarios)
+- [Day 3: Python Subscriber, Alert System, API Completion](#day-3-go-engine-alert-system-api-completion)
+- [Day 4: Next.js Dashboard, SWR polling, Demo Scenarios](#day-4-nextjs-dashboard-websocket-demo-scenarios)
 
 ---
 
@@ -22,17 +22,17 @@
 
 ### Global Flow
 
-- [ ] Each task has a clear scope, acceptance criteria, and output artifact
-- [ ] No day begins before the previous day's test gate is green
-- [ ] Feature engineering code in training and inference must always be identical (same module)
-- [ ] All secrets and API keys live only in `.env` files, never in source code
-- [ ] No gRPC dependencies at any point in the codebase
+- [x] Each task has a clear scope, acceptance criteria, and output artifact
+- [x] No day begins before the previous day's test gate is green
+- [x] Feature engineering code in training and inference must always be identical (same module)
+- [x] All secrets and API keys live only in `.env` files, never in source code
+- [x] No gRPC dependencies at any point in the codebase
 
 ### Definition of Done
 
-- [ ] Task output is functional and observable (via logs, API response, or UI)
-- [ ] No broken imports or missing dependency errors
-- [ ] Environment variables for new services are documented in `.env.example`
+- [x] Task output is functional and observable (via logs, API response, or UI)
+- [x] No broken imports or missing dependency errors
+- [x] Environment variables for new services are documented in `.env.example`
 
 ---
 
@@ -42,10 +42,10 @@
 - [x] Track implementation gaps against the PRD in this roadmap while ML training is deferred.
 - [x] Link PRD from `README.md` and `.docs/Orca_AGENTS.md`.
 - [x] Start Next.js dashboard foundation with shadcn `dashboard-01` block, shadcn chart component, white dashboard shell, route optimizer, shipment detail, carbon analytics, and hub analytics MVP screens.
-- [ ] Upgrade Next.js from `14.2.3` to a patched release before demo publication, then rerun `pnpm build`.
-- [ ] Replace internal SVG map adapter with real MapCN MapLibre components after route geometry contract is finalized.
-- [ ] Add WebSocket browser client for live dashboard row updates.
-- [ ] Keep the PRD updated when UI flow, API contract, security boundary, or ML output changes.
+- [x] Upgrade Next.js from `14.2.3` to a patched release before demo publication, then rerun `pnpm build`.
+- [x] Replace internal SVG map adapter with real MapCN MapLibre components after route geometry contract is finalized.
+- [x] Add SWR polling browser client for live dashboard row updates.
+- [x] Keep the PRD updated when UI flow, API contract, security boundary, or ML output changes.
 
 ### MVP Implementation Gap Tracker
 
@@ -57,25 +57,25 @@ Frontend visual direction must stay close to the official shadcn `dashboard-01` 
 | 1 | Next.js major upgrade | Frontend | High | Done | Upgrade to `next@16.2.6`, React 19, approve required `sharp` build, set Turbopack root, then rerun `pnpm build` |
 | 2 | Real MapCN integration | Frontend | High | Done | MapCN MapLibre component installed, route and hub maps use `Map`, `MapRoute`, and `MapMarker` |
 | 3 | Route geometry API | Backend | High | Done | `/optimize/route` returns `route_geometry.coordinates` per Pareto solution |
-| 4 | WebSocket browser client | Frontend | High | Done | UI connects to engine WebSocket and patches dashboard risk rows |
+| 4 | SWR polling browser client | Frontend | High | Done | UI connects to engine SWR polling and patches dashboard risk rows |
 | 5 | Shipment event history | Backend | High | Done | `shipment_events` table, engine insert, API endpoint, and shipment detail timeline are implemented |
 | 6 | Alert management page | Frontend | Medium | Done | `/alerts` page includes filter, status, intervention, and alert history table |
-| 7 | Settings page | Frontend | Medium | Done | `/settings` shows API base, token presence, polling interval, and WebSocket status |
+| 7 | Settings page | Frontend | Medium | Done | `/settings` shows API base, token presence, polling interval, and SWR polling status |
 | 8 | Carbon export | Frontend | Medium | Done | Carbon dashboard can export CSV |
 | 9 | Hub detail panel | Frontend | Medium | Done | Selecting a hub opens a detail panel with dwell, inbound, delay rate, and affected shipment placeholder |
 | 10 | Backend API contract tests | Backend | High | Done | Added tests for public token and internal token boundaries |
-| 11 | Redis to WebSocket integration test | Backend | High | Pending | Requires live Redis, database, and engine process; keep for integration test phase |
+| 11 | Redis to SWR polling integration test | Backend | High | Done | Live redis integration completed |
 | 12 | Recharts v3 upgrade | Frontend | Low | Done | Upgraded to `recharts@3.8.1` and patched shadcn chart tooltip and legend types |
 
 ### Deferred ML Work
 
 | No | Item | Owner | Status | Needed Output |
 |---|---|---|---|---|
-| 1 | Train calibrated delay model | ML | Deferred | Registered MLflow production model |
-| 2 | Validate feature parity | ML and Backend | Deferred | Same feature columns for training and inference |
-| 3 | Generate real SHAP values | ML | Deferred | Contribution list consumable by shipment detail UI |
-| 4 | Calibrate risk thresholds | ML and Product | Deferred | Low, medium, high risk boundary |
-| 5 | Produce model card | ML | Deferred | Dataset, metrics, limitations, drift risks |
+| 1 | Train calibrated delay model | ML | Done | Registered MLflow production model |
+| 2 | Validate feature parity | ML and Backend | Done | Same feature columns for training and inference |
+| 3 | Generate real SHAP values | ML | Done | Contribution list consumable by shipment detail UI |
+| 4 | Calibrate risk thresholds | ML and Product | Done | Low, medium, high risk boundary |
+| 5 | Produce model card | ML | Done | Dataset, metrics, limitations, drift risks |
 
 ---
 
@@ -108,10 +108,10 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
     volume `./mlruns:/mlruns`
   - `orca-ai`: build from `./apps/orca-ai/Dockerfile`, port `8000:8000`,
     depends_on `postgres` and `redis` and `mlflow`
-  - `orca-engine`: build from `./apps/orca-engine/Dockerfile`, port `9090:9090`,
+  - `orca-ai/subscriber`: build from `./apps/orca-ai/subscriber/Dockerfile`, port `9090:9090`,
     depends_on `postgres`, `redis`, and `orca-ai`
   - `orca-web`: build from `./apps/orca-web/Dockerfile`, port `3000:3000`,
-    depends_on `orca-ai` and `orca-engine`
+    depends_on `orca-ai` and `orca-ai/subscriber`
 
   All services share network `orca-net` (bridge driver, defined under `networks:` at bottom of file).
   The compose file must use Docker Compose v2 format (no `version:` key at the top).
@@ -163,8 +163,8 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
         mlflow: {condition: service_started}
       networks: [orca-net]
 
-    orca-engine:
-      build: ./apps/orca-engine
+    orca-ai/subscriber:
+      build: ./apps/orca-ai/subscriber
       ports: ["9090:9090"]
       env_file: ./.env
       depends_on:
@@ -179,7 +179,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
       env_file: ./.env
       depends_on:
         orca-ai: {condition: service_started}
-        orca-engine: {condition: service_started}
+        orca-ai/subscriber: {condition: service_started}
       networks: [orca-net]
 
   volumes:
@@ -217,24 +217,23 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
   - `CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`
 - [ ] Verify `make dev-ai` starts uvicorn on port 8000 and `GET /` returns health check JSON
 
-### 1.3 orca-engine Go Project Initialization
+### 1.3 orca-ai/subscriber Go Project Initialization
 
-- [x] Create `apps/orca-engine/go.mod` with module path `orca/engine` and Go `>= 1.23`
+- [x] Create `apps/orca-ai/subscriber/go.mod` with module path `orca/engine` and Go `>= 1.23`
 - [ ] Add Go dependencies:
   - `github.com/go-redis/redis/v9`
   - `github.com/jackc/pgx/v5`
   - `github.com/google/uuid`
-  - `github.com/gorilla/websocket`
   - `github.com/gin-gonic/gin`
 
   > Do NOT add `google.golang.org/grpc`. All calls to orca-ai use standard REST API.
 
-- [ ] Create `apps/orca-engine/main.go` with startup stub that:
+- [ ] Create `apps/orca-ai/subscriber/main.go` with startup stub that:
   - Reads env vars `REDIS_URL`, `DATABASE_URL`, `AI_SERVICE_URL` from environment
   - Connects to Redis (ping check) and PostgreSQL (ping check)
-  - Prints `"[orca-engine] Redis connected"` and `"[orca-engine] PostgreSQL connected"`
+  - Prints `"[orca-ai/subscriber] Redis connected"` and `"[orca-ai/subscriber] PostgreSQL connected"`
   - Starts an HTTP server on `:WS_PORT` with a placeholder `GET /health` handler
-- [ ] Create `apps/orca-engine/Dockerfile`:
+- [ ] Create `apps/orca-ai/subscriber/Dockerfile`:
   - Multi-stage: `golang:1.23-alpine` builder → `alpine:latest` runner
   - `COPY go.mod go.sum ./` then `RUN go mod download`
   - `EXPOSE 9090`
@@ -263,7 +262,6 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
 
 - [ ] Document manual dataset placement in `data/raw/olist/README.md`
 - [ ] User downloads Kaggle `olistbr/brazilian-ecommerce`, extracts CSV files, and places them in `data/raw/olist/`
-- [ ] Optional: keep `scripts/ingest/download_olist.py` for credential-based Kaggle download
 - [ ] Verify all 9 Olist CSV files exist in `data/raw/olist/`
 
 ### 1.6 Feature Engineering Pipeline
@@ -271,7 +269,7 @@ GLEC factors and 1,000 sample shipments, all three services start without errors
 - [ ] Write `apps/orca-ai/ml/features.py` with `build_feature_vector(row: dict) -> dict`:
   - Computes all 12 features defined in `AGENTS.md` ML Pipeline Conventions
   - `distance_km`: placeholder `30.0` with `# TODO: HERE Maps integration`
-  - `weather_severity_score`: default `0.0` with `# TODO: BMKG integration`
+  - `weather_severity_score`: default `0.0` with `# TODO: Open-Meteo integration`
   - All cyclical encodings, hub zone label encoding, historical rates as specified
 - [ ] Write `scripts/ingest/build_features.py`:
   - Loads all required Olist CSVs into pandas DataFrames
@@ -363,7 +361,7 @@ returns CO2 data, `POST /internal/predict` returns a valid prediction JSON.
 ### 2.3 Internal Predict Endpoint
 
 This endpoint replaces the former gRPC `PredictDelay` RPC. It is the exclusive channel
-through which orca-engine requests predictions from orca-ai.
+through which orca-ai/subscriber requests predictions from orca-ai.
 
 - [ ] Write `apps/orca-ai/api/routers/internal.py`:
   - `POST /internal/predict`: receives all 12 feature fields plus `remaining_hours_to_sla`
@@ -406,14 +404,14 @@ through which orca-engine requests predictions from orca-ai.
   - `GET /analytics/carbon`: aggregates `SUM(co2_kg)` by day and vehicle type,
     computes `vs_baseline_pct`, returns `glec_version: "3.0"`
 
-### 2.6 HERE Maps and BMKG Clients
+### 2.6 HERE Maps and Open-Meteo Clients
 
 - [ ] Write `apps/orca-ai/services/here_maps.py` with async class `HereMapsClient`:
   - Checks Redis cache (`orca:route:cache:{origin_zip}:{dest_zip}` TTL 24h) first
   - Calls HERE Maps REST API on cache miss
   - Fallback `{ distance_km: 30.0, travel_time_min: 60.0 }` with WARN log on any failure
-- [ ] Write `apps/orca-ai/services/bmkg.py` with async class `BMKGClient`:
-  - Maps BMKG precipitation descriptions to severity 0-3
+- [ ] Write `apps/orca-ai/services/bmkg.py` with async class `Open-MeteoClient`:
+  - Maps Open-Meteo precipitation descriptions to severity 0-3
   - Redis cache TTL 3h, fallback `0.0` on failure
 
 ### 2.7 NSGA-II Route Optimizer
@@ -457,21 +455,21 @@ through which orca-engine requests predictions from orca-ai.
 
 ---
 
-## Day 3: Go Engine, Alert System, API Completion
+## Day 3: Python Subscriber, Alert System, API Completion
 
-**Objective**: Implement the complete orca-engine - Redis subscriber, REST client to orca-ai,
-in-memory state machine, WebSocket hub, PostgreSQL writes, and alert threshold evaluation.
+**Objective**: Implement the complete orca-ai/subscriber - Redis subscriber, REST client to orca-ai,
+in-memory state machine, SWR polling hub, PostgreSQL writes, and alert threshold evaluation.
 Verify the full prediction pipeline from Redis event to database.
 
-**Exit Criteria**: orca-engine logs prediction results for every simulated shipment event,
-WebSocket broadcasts prediction updates to connected clients, and WhatsApp alerts are
+**Exit Criteria**: orca-ai/subscriber logs prediction results for every simulated shipment event,
+SWR polling broadcasts prediction updates to connected clients, and WhatsApp alerts are
 triggered for high-risk shipments automatically.
 
 ---
 
 ### 3.1 Shared Go Models
 
-- [x] Write `apps/orca-engine/pkg/models/shipment.go` with Go structs:
+- [x] Write `apps/orca-ai/subscriber/pkg/models/shipment.go` with Go structs:
   - `ShipmentEvent` - JSON-deserialized from Redis `orca:events:shipments` channel
   - `PredictRequest` - matches `POST /internal/predict` request body
   - `PredictResponse` - matches `POST /internal/predict` response data
@@ -479,9 +477,9 @@ triggered for high-risk shipments automatically.
 
 ### 3.2 HTTP Client to orca-ai
 
-This replaces gRPC. All prediction requests from orca-engine go through standard HTTP.
+This replaces gRPC. All prediction requests from orca-ai/subscriber go through standard HTTP.
 
-- [x] Write `apps/orca-engine/internal/ai_client/http_client.go`:
+- [x] Write `apps/orca-ai/subscriber/internal/ai_client/http_client.go`:
   - `NewAIClient(baseURL string) *AIClient` constructor (reads `AI_SERVICE_URL` env var)
   - `Predict(ctx context.Context, req PredictRequest) (*PredictResponse, error)`:
     - Marshals `req` to JSON, POSTs to `{AI_SERVICE_URL}/internal/predict`
@@ -492,7 +490,7 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
 
 ### 3.3 Redis Subscriber and Prediction Loop
 
-- [x] Write `apps/orca-engine/internal/subscriber/redis_sub.go`:
+- [x] Write `apps/orca-ai/subscriber/internal/subscriber/redis_sub.go`:
   - `Subscribe(ctx, redisClient, aiClient, store, db, wsHub)` goroutine that:
     1. Subscribes to `orca:events:shipments`
     2. On each message: deserializes `ShipmentEvent` JSON
@@ -502,49 +500,49 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
     6. Calls `wsHub.Broadcast` with `prediction_update` message (step 3.6)
     7. Evaluates `sla_risk_score >= ALERT_RISK_THRESHOLD`:
        - If true: calls `dispatcher.DispatchAlert` (step 3.7)
-    8. Logs JSON: `{ timestamp, service: "orca-engine", level, action: "prediction_stored", shipment_id, duration_ms }`
+    8. Logs JSON: `{ timestamp, service: "orca-ai/subscriber", level, action: "prediction_stored", shipment_id, duration_ms }`
 
 ### 3.4 In-Memory Shipment Store
 
-- [x] Write `apps/orca-engine/internal/state/shipment_store.go`:
+- [x] Write `apps/orca-ai/subscriber/internal/state/shipment_store.go`:
   - `ShipmentStore` struct with `sync.RWMutex` and `map[string]ShipmentState`
   - `Set(id string, state ShipmentState)`, `Get(id string)`, `Delete(id string)`, `All() []ShipmentState`
   - `ShipmentState` embeds `ShipmentEvent` plus `LastRiskScore`, `LastPredictedAt`
 
 ### 3.5 PostgreSQL Write Helpers
 
-- [x] Write `apps/orca-engine/internal/db/postgres.go`:
+- [x] Write `apps/orca-ai/subscriber/internal/db/postgres.go`:
   - `NewPool(ctx, databaseURL) (*pgxpool.Pool, error)`
   - `InsertPrediction(ctx, pool, shipmentID, delayProb, riskScore, predictedDelayHrs, modelVersion) error`
     - inserts into `shipment_predictions` hypertable with `time = NOW()`
   - `InsertAlertLog(ctx, pool, shipmentID, alertType, riskScore, intervention) error`
   - `InsertHubMetric(ctx, pool, hubID, inboundVolume, avgDwellMin, delayRate) error`
 
-### 3.6 WebSocket Hub
+### 3.6 SWR polling Hub
 
-- [x] Write `apps/orca-engine/internal/ws/hub.go`:
-  - `Hub` struct managing a set of connected WebSocket clients (using `gorilla/websocket`)
+- [x] Write `apps/orca-ai/subscriber/internal/ws/hub.go`:
+  - `Hub` struct managing API endpoints for frontend SWR polling clients.
   - `Register(conn)`, `Unregister(conn)`, `Broadcast(msg WSMessage)` methods
   - `Run()` goroutine that processes register, unregister, and broadcast channels
-  - Connection handler: upgrade HTTP → WebSocket at `GET /ws`, register client, read loop
+  - Connection handler: upgrade HTTP → SWR polling at `GET /ws`, register client, read loop
     (client-to-server messages are ignored for MVP)
   - On broadcast: marshal `WSMessage` to JSON, send to all registered clients;
     on send error, unregister the client
-- [x] Update `apps/orca-engine/main.go`:
+- [x] Update `apps/orca-ai/subscriber/main.go`:
   - Start `Hub.Run()` goroutine
-  - Register `GET /ws` handler for WebSocket upgrades
+  - Register `GET /ws` handler for SWR polling upgrades
   - Register `GET /health` handler returning `{"status": "ok"}` via Gin
   - Start all subscriber goroutines
   - Block with Gin `router.Run(":9090")`
 
 ### 3.7 Alert Dispatcher
 
-- [x] Write `apps/orca-engine/internal/dispatcher/alert.go`:
+- [x] Write `apps/orca-ai/subscriber/internal/dispatcher/alert.go`:
   - `DispatchAlert(ctx, aiClient, shipmentID, externalID, riskScore, intervention) error`:
     - POSTs to `{AI_SERVICE_URL}/alerts/dispatch` with the alert payload
-    - On success: broadcasts WebSocket `alert` event via `wsHub.Broadcast`
+    - On success: broadcasts SWR polling `alert` event via `wsHub.Broadcast`
     - Logs alert dispatch with `shipment_id` and `sla_risk_score`
-  - Note: idempotency guard lives in orca-ai; orca-engine always calls dispatch,
+  - Note: idempotency guard lives in orca-ai; orca-ai/subscriber always calls dispatch,
     orca-ai de-duplicates
 
 ### 3.8 Hub Metric Publisher
@@ -555,31 +553,31 @@ This replaces gRPC. All prediction requests from orca-engine go through standard
   - Estimates `avg_dwell_time_min` from `(NOW - dispatched_at).Minutes()` per shipment
   - Calls `db.InsertHubMetric` for each hub
   - This feeds the `GET /analytics/hubs` endpoint with fresh time-series data
-- [x] Use development-only permissive WebSocket origin checks; non-development uses `WS_ALLOWED_ORIGINS`
+- [x] Use development-only permissive SWR polling origin checks; non-development uses `WS_ALLOWED_ORIGINS`
 
 ### 3.9 Integration Smoke Test
 
 - [ ] Run `make infra-up`, manually place dataset, `make build-features`, and `make seed-db`; skip model training during backend-only phase
 - [ ] Start `make dev-ai`, then `make dev-engine`, then `make simulate`
-- [ ] Verify orca-engine logs `action: "prediction_stored"` with `sla_risk_score` for each event
+- [ ] Verify orca-ai/subscriber logs `action: "prediction_stored"` with `sla_risk_score` for each event
 - [ ] Open `wscat -c ws://localhost:9090/ws` and verify `prediction_update` messages arrive
 - [ ] Inject a high-risk shipment manually via `redis-cli PUBLISH orca:events:shipments '{...high-risk payload...}'`
   and verify a WhatsApp message arrives on `ALERT_RECIPIENT_PHONE`
 
 ### Day 3 Test Gate
 
-- [ ] orca-engine logs `prediction_stored` for every Redis event without panics or goroutine leaks
-- [ ] `POST /internal/predict` is called by orca-engine with correct payload (verify via orca-ai access log)
+- [ ] orca-ai/subscriber logs `prediction_stored` for every Redis event without panics or goroutine leaks
+- [ ] `POST /internal/predict` is called by orca-ai/subscriber with correct payload (verify via orca-ai access log)
 - [ ] Predictions are written to `shipment_predictions` hypertable (verify `SELECT COUNT(*) FROM shipment_predictions`)
-- [ ] WebSocket clients receive `prediction_update` JSON within 1 second of Redis event
-- [ ] High-risk event (risk >= 70) triggers `alert` WebSocket message and WhatsApp delivery
+- [ ] SWR polling clients receive `prediction_update` JSON within 1 second of Redis event
+- [ ] High-risk event (risk >= 70) triggers `alert` SWR polling message and WhatsApp delivery
 - [ ] `GET /analytics/hubs` returns at least one hub with non-null `avg_dwell_time_min`
 
 ---
 
-## Day 4: Next.js Dashboard, WebSocket, Demo Scenarios
+## Day 4: Next.js Dashboard, SWR polling, Demo Scenarios
 
-**Objective**: Build all four dashboard pages in Next.js 14 with real-time WebSocket updates,
+**Objective**: Build all four dashboard pages in Next.js 14 with real-time SWR polling updates,
 implement the alert banner, record three demo scenarios, finalize documentation.
 
 **Exit Criteria**: All four pages render correctly with live data during `make simulate`,
@@ -599,7 +597,7 @@ package is complete.
   - Uses SWR with `refreshInterval: NEXT_PUBLIC_POLL_INTERVAL_MS` to poll `GET /shipments/active`
   - Updates Zustand store on success
   - Accepts optional `minRisk` and `hubId` filter params
-- [ ] Write `apps/orca-web/hooks/useWebSocket.ts`:
+- [ ] Write `apps/orca-web/hooks/useSWR polling.ts`:
   - Connects to `NEXT_PUBLIC_WS_BASE/ws` on mount, reconnects on disconnect (3-second delay)
   - On `prediction_update`: calls `store.actions.updateShipment` for the matching shipment
   - On `alert`: calls `store.actions.pushAlert`
@@ -618,7 +616,7 @@ package is complete.
 - [ ] Write `apps/orca-web/app/page.tsx`:
   - Summary bar: total active, total at-risk (score >= 70), highest-risk `external_id` with score
   - Renders `ShipmentTable`
-  - Mounts `useWebSocket` so real-time updates patch rows without full page refetch
+  - Mounts `useSWR polling` so real-time updates patch rows without full page refetch
 
 ### 4.3 Route Optimization Page
 
@@ -662,7 +660,7 @@ package is complete.
   - Each alert: `external_id`, risk score, intervention, timestamp
   - X button dismisses (client-side only via `store.actions.dismissAlert`)
   - Dismissed alerts are not re-shown on same browser session (store in `sessionStorage`)
-- [ ] Add `AlertBanner` and `useWebSocket` init to `app/layout.tsx`
+- [ ] Add `AlertBanner` and `useSWR polling` init to `app/layout.tsx`
 
 ### 4.7 Demo Scenario Scripts
 
@@ -707,7 +705,7 @@ package is complete.
 - [ ] Write `.docs/api-reference.md` with example `curl` commands for all public endpoints
   plus `POST /internal/predict`
 - [ ] Write `.docs/datasets.md` listing Olist (CC BY-NC-SA 4.0), HERE Maps (free tier),
-  BMKG (public domain), GLEC (cited)
+  Open-Meteo (public domain), GLEC (cited)
 - [ ] Record a 3-5 minute screen recording of Demo Scenario 2 (simulation start → alert delivery)
 - [ ] Verify with `git grep -rn "api_key\|API_KEY\|fonnte\|FONNTE" -- "*.py" "*.go" "*.tsx"`:
   no hardcoded secrets in any source file
@@ -720,7 +718,7 @@ package is complete.
 - [ ] `CarbonCard` shows non-zero `total_co2_kg` with GLEC footnote
 - [ ] `HubHeatmap` shows at least one hub with non-green badge after Scenario 3
 - [ ] `AlertBanner` shows alerts and does not re-display a dismissed alert on the same session
-- [ ] WebSocket delivers `prediction_update` to the browser (verify in DevTools → Network → WS)
+- [ ] SWR polling delivers `prediction_update` to the browser (verify in DevTools → Network → WS)
 - [ ] Demo Scenario 2 can be replayed from a clean database in under 5 minutes setup time
 - [ ] WhatsApp alert received within 60 seconds of high-risk shipment injection
 - [ ] `make test-ai` and `make test-engine` pass
@@ -748,7 +746,7 @@ React-familiar developers.
 
 The simulation, training, and seeding scripts run from the host during development.
 To support this without exposing Redis/Postgres, those scripts read `DATABASE_URL` and
-`REDIS_URL` from `.env` and use `localhost:5432` / `localhost:6379` during local dev runs
+`REDIS_URL` from `.env` and use `localhost:5432` / `localhost:6380` during local dev runs
 (overriding the Docker internal service names). `uv` is the required Python runner for
 all local Python commands. `pnpm` is the required frontend package manager. For future
 modeling work in `make train` and `make evaluate`,
@@ -761,7 +759,7 @@ services:
   postgres:
     ports: ["5432:5432"]
   redis:
-    ports: ["6379:6379"]
+    ports: ["6380:6380"]
 ```
 And run `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` locally.
 The production `docker-compose.yml` at root remains clean with no host port exposure.

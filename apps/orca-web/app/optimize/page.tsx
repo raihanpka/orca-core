@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis } from "recharts"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis, Cell } from "recharts"
+import useSWR from "swr"
 
 import { jakartaRoutePoints, type Point } from "@/lib/mock-data"
 import dynamic from "next/dynamic"
@@ -15,18 +16,18 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Trash2Icon } from "lucide-react"
 import { apiFetch, type RouteOptimizationResponse } from "@/lib/api"
-import { demoRoute } from "@/lib/mock-data"
 import { formatNumber } from "@/lib/utils"
+
+function toTitleCase(str: string) {
+  return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
 
 const chartConfig = {
   eta: {
@@ -40,164 +41,427 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function OptimizePage() {
-  const [vehicleType, setVehicleType] = useState("van")
-  const [result, setResult] = useState<RouteOptimizationResponse>(demoRoute)
+  const { data: vehicleResponse } = useSWR<{vehicles: string[]}>("/optimize/vehicles", apiFetch)
+  const { data: hubsResponse } = useSWR<{hubs: Array<{id: string, name: string, lat: number, lng: number}>}>("/hubs/", apiFetch)
+
+  const availableVehicles = vehicleResponse?.vehicles ?? ["van_diesel", "truck_lt35t", "truck_gt75t", "scooter_electric"];
+  const availableHubs = hubsResponse?.hubs ?? [
+    { id: "hub_cakung", name: "Hub Cakung (East Jakarta)", lat: -6.1824, lng: 106.9213 },
+    { id: "hub_kebon_jeruk", name: "Hub Kebon Jeruk (West Jakarta)", lat: -6.1950, lng: 106.7645 },
+    { id: "hub_pasar_minggu", name: "Hub Pasar Minggu (South Jakarta)", lat: -6.2844, lng: 106.8441 },
+  ];
+
+  const [vehicleType, setVehicleType] = useState("van_diesel")
+  const [routingEngine, setRoutingEngine] = useState("stadia")
+  const [originHubId, setOriginHubId] = useState("hub_pasar_minggu")
+  const [focusPoint, setFocusPoint] = useState<[number, number] | null>(null)
+  const [waypoints, setWaypoints] = useState<Array<{id: string, lat: number, lng: number, weight: number}>>([])
+
+  const [result, setResult] = useState<RouteOptimizationResponse | null>(null)
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const selectedGeometryPoints = useMemo<Point[]>(() => {
-    const coordinates = result.pareto_solutions[0]?.route_geometry?.coordinates
-    if (!coordinates?.length) return jakartaRoutePoints
-    return coordinates.map((coordinates, index) => ({
-      label: index === 0 ? "Origin" : `Stop ${index}`,
-      coordinates,
-      tone: index === 0 ? "default" : index === 1 ? "high" : index === 2 ? "medium" : "low",
+  const [optimizationGoal, setOptimizationGoal] = useState("lowest_cost")
+  const [error, setError] = useState<string | null>(null)
+
+  const handleAddWaypoint = () => {
+    setWaypoints([...waypoints, {
+      id: crypto.randomUUID(),
+      lat: -6.200, lng: 106.816, weight: 5
+    }])
+  }
+
+  const handleUpdateWaypoint = (id: string, field: "lat"|"lng"|"weight"|"hub", value: number|string) => {
+    setResult(null) // Clear old route when editing points
+    setWaypoints(waypoints.map(w => {
+      if (w.id === id) {
+        if (field === "hub") {
+           const hub = availableHubs.find(h => h.id === value);
+           if (hub) {
+             setFocusPoint([hub.lng, hub.lat])
+             return { ...w, lat: hub.lat, lng: hub.lng };
+           }
+        }
+        return { ...w, [field]: value }
+      }
+      return w
     }))
-  }, [result])
+  }
+
+  const handleRemoveWaypoint = (id: string) => {
+    setWaypoints(waypoints.filter(w => w.id !== id))
+  }
+  
+  const selectedGeometryPoints = useMemo<Point[]>(() => {
+    const origin = availableHubs.find(h => h.id === originHubId);
+    const points: Point[] = [];
+    if (origin) {
+      points.push({ label: `Origin (${origin.name})`, coordinates: [origin.lng, origin.lat], tone: "default" })
+    }
+    waypoints.forEach((wp, i) => {
+      points.push({ label: `Stop ${i+1}`, coordinates: [wp.lng, wp.lat], tone: i === 0 ? "high" : i === 1 ? "medium" : "low" })
+    })
+    return points
+  }, [originHubId, waypoints])
+
+  const routeLine = useMemo(() => {
+    return result?.pareto_solutions?.[selectedRouteIndex]?.route_geometry?.coordinates
+  }, [result, selectedRouteIndex])
   const chartData = useMemo(
     () =>
-      result.pareto_solutions.map((item) => ({
+      result?.pareto_solutions?.map((item) => ({
         label: item.label,
         eta: item.travel_time_min,
         co2: item.co2_kg,
         risk: item.sla_risk_score,
-      })),
+      })) ?? [],
     [result]
   )
 
-  async function submitRoute() {
+  const submitRoute = async () => {
     setIsSubmitting(true)
+    setError(null)
+    
     try {
+      const vehicleId = `B-ORCA-${Math.floor(10 + Math.random() * 90)}`
       const payload = {
-        vehicle_id: "B-ORCA-21",
+        vehicle_id: vehicleId,
         vehicle_type: vehicleType,
-        load_weight_kg: 24,
-        origin_hub_id: "hub_jakarta_selatan",
+        load_weight_kg: waypoints.reduce((sum, w) => sum + w.weight, 0),
+        origin_hub_id: originHubId,
         current_traffic_level: "normal",
-        delivery_stops: [
-          {
-            shipment_id: "7f2a4ef2-5c5a-45a7-9e4a-58ad3a60b101",
-            destination_lat: -6.2383,
-            destination_lng: 106.9756,
-            sla_deadline: new Date(Date.now() + 1000 * 60 * 180).toISOString(),
-            weight_kg: 8,
-          },
-          {
-            shipment_id: "77bb1147-f19f-4f44-8ca6-b7d53723b102",
-            destination_lat: -6.4025,
-            destination_lng: 106.7942,
-            sla_deadline: new Date(Date.now() + 1000 * 60 * 220).toISOString(),
-            weight_kg: 6,
-          },
-        ],
+        delivery_stops: waypoints.map((wp, i) => ({
+          shipment_id: wp.id,
+          destination_lat: wp.lat,
+          destination_lng: wp.lng,
+          sla_deadline: new Date(Date.now() + 1000 * 60 * (180 + i * 40)).toISOString(),
+          weight_kg: wp.weight,
+        })),
+        routing_engine: routingEngine,
       }
       setResult(await apiFetch<RouteOptimizationResponse>("/optimize/route", {method: "POST", body: JSON.stringify(payload)}))
-    } catch {
-      setResult(demoRoute)
+      setSelectedRouteIndex(0)
+      setFocusPoint(null)
+    } catch (err) {
+      setResult(null)
+      const msg = err instanceof Error ? err.message : "Unknown error"
+      setError(msg.includes("aborted") || msg.includes("abort") ? "Request timed out (>120s). Pastikan backend berjalan." : `Gagal: ${msg}`)
     } finally {
       setIsSubmitting(false)
     }
   }
 
+
+
   return (
-    <div className="@container/main flex flex-1 flex-col gap-4 p-4 lg:p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Route Optimizer</h1>
-        <p className="text-sm text-muted-foreground">
-          Compare ETA, CO2, fuel cost, and SLA risk with a map-first route planning view.
-        </p>
+    <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-slate-50/50 min-h-screen">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Route Optimizer</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Configure parameters to generate optimal global delivery routes.
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Stop Input</CardTitle>
-            <CardDescription>MVP form uses seeded Jakarta stops while preserving the API contract.</CardDescription>
+      <div className="flex flex-col gap-6">
+        {/* Top: Full Width Map */}
+        <Card className="w-full shadow-sm border-slate-200 flex flex-col min-h-[450px]">
+          <CardContent className="p-0 flex-1 relative min-h-[400px]">
+            <RouteMap 
+              points={selectedGeometryPoints} 
+              routeLine={routeLine}
+              className="absolute inset-0 w-full h-full border-0 rounded-b-xl" 
+            />
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-6 xl:grid-cols-12 items-stretch h-full">
+          {/* Bottom Left Column: Route Configuration */}
+          <Card className="col-span-1 xl:col-span-4 shadow-sm border-slate-200 h-full">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Route Configuration</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Vehicle ID</Label>
-              <Input defaultValue="B-ORCA-21" />
-            </div>
-            <div className="space-y-2">
-              <Label>Vehicle Type</Label>
-              <Select value={vehicleType} onValueChange={(val) => setVehicleType(val || "truck")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vehicle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="van">Van</SelectItem>
-                  <SelectItem value="truck">Truck</SelectItem>
-                  <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Stops</Label>
-                <Input readOnly value="3" />
+          <CardContent className="space-y-8">
+            {/* Timeline Input */}
+            <div className="relative ml-2 space-y-6 before:absolute before:inset-0 before:ml-[7px] before:w-0.5 before:-translate-x-px before:bg-slate-200">
+              <div className="relative flex items-start gap-4">
+                <div className="h-4 w-4 mt-2.5 rounded-full bg-[#005A8C] border-[3px] border-white shadow-sm ring-1 ring-slate-200 z-10" />
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs text-slate-500">Origin</Label>
+                  <Select value={originHubId} onValueChange={(val) => {
+                    setResult(null)
+                    setOriginHubId(val || "hub_jakarta_selatan")
+                    const hub = availableHubs.find(h => h.id === val)
+                    if (hub) setFocusPoint([hub.lng, hub.lat])
+                  }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Origin">
+                      {availableHubs.find((h) => h.id === originHubId)?.name || toTitleCase(originHubId)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableHubs.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Load</Label>
-                <Input readOnly value="24 kg" />
+              
+              {waypoints.map((wp, index) => {
+                const matchedHub = availableHubs.find(h => Math.abs(h.lat - wp.lat) < 0.0001 && Math.abs(h.lng - wp.lng) < 0.0001);
+                return (
+                <div key={wp.id} className="relative flex items-start gap-4">
+                  <div className="h-4 w-4 mt-2.5 rounded-full bg-white border-2 border-slate-300 shadow-sm z-10" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-xs font-semibold text-slate-600">
+                        Stop {index + 1} {matchedHub ? <span className="font-normal text-slate-400 ml-1">{matchedHub.name}</span> : null}
+                      </Label>
+                      {waypoints.length > 1 && (
+                        <button onClick={() => handleRemoveWaypoint(wp.id)} className="text-slate-400 hover:text-red-500">
+                          <Trash2Icon className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                      <Select value={matchedHub?.id || ""} onValueChange={(val: string | null) => {
+                        if (!val) return
+                        handleUpdateWaypoint(wp.id, "hub", val)
+                        const hub = availableHubs.find(h => h.id === val)
+                        if (hub) setFocusPoint([hub.lng, hub.lat])
+                      }}>
+                        <SelectTrigger className="h-8 text-xs bg-white w-full">
+                          <SelectValue placeholder="Quick Pick Hub...">
+                            {matchedHub ? matchedHub.name : "Quick Pick Hub..."}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="w-[--radix-select-trigger-width]">
+                          {availableHubs.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <div className="grid grid-cols-[1fr_1fr_6.5rem] gap-2">
+                        <Input type="number" step="0.001" value={wp.lat} onChange={e => {
+                          const v = parseFloat(e.target.value) || 0
+                          handleUpdateWaypoint(wp.id, 'lat', v)
+                          setFocusPoint([wp.lng, v])
+                        }} className="h-8 bg-white text-xs w-full" placeholder="Lat" />
+                        <Input type="number" step="0.001" value={wp.lng} onChange={e => {
+                          const v = parseFloat(e.target.value) || 0
+                          handleUpdateWaypoint(wp.id, 'lng', v)
+                          setFocusPoint([v, wp.lat])
+                        }} className="h-8 bg-white text-xs w-full" placeholder="Lng" />
+                        <div className="relative w-full">
+                          <Input 
+                            type="number" 
+                            value={wp.weight === 0 ? "" : wp.weight} 
+                            onChange={e => {
+                              const val = e.target.value;
+                              // Allow empty string to show placeholder, otherwise parse
+                              handleUpdateWaypoint(wp.id, 'weight', val === "" ? 0 : parseFloat(val))
+                            }} 
+                            onFocus={e => e.target.select()}
+                            className="h-8 bg-white text-xs text-left pr-6 w-full" 
+                            placeholder="0" 
+                          />
+                          <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none">kg</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )})}
+
+              <div className="relative flex items-center gap-4">
+                <div className="h-4 w-4 rounded-full bg-white border-2 border-[#005A8C] flex items-center justify-center z-10">
+                  <div className="h-1.5 w-1.5 bg-[#005A8C] rounded-full" />
+                </div>
+                <div className="flex-1">
+                  <span onClick={handleAddWaypoint} className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline">⊕ Add Waypoint</span>
+                </div>
               </div>
             </div>
-            <Button className="w-full" onClick={submitRoute} disabled={isSubmitting}>
-              {isSubmitting ? "Optimizing" : "Optimize Route"}
-            </Button>
+
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="space-y-3">
+                  <Label>Vehicle Type</Label>
+                  <Select value={vehicleType} onValueChange={(val) => setVehicleType(val || "van_diesel")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Vehicle">
+                        {toTitleCase(vehicleType)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableVehicles.map(v => (
+                        <SelectItem key={v} value={v}>{toTitleCase(v)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+              </div>
+              <div className="space-y-3">
+                  <Label>Routing Engine</Label>
+                  <Select value={routingEngine} onValueChange={(val) => setRoutingEngine(val || "osmnx")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Engine">
+                        {routingEngine === "stadia" ? "Stadia Maps API" : "Local (OSMnx)"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="osmnx">Local (OSMnx)</SelectItem>
+                      <SelectItem value="stadia">Stadia Maps API</SelectItem>
+                    </SelectContent>
+                  </Select>
+              </div>
+            </div>
+            
+            <div className="pt-6 border-t border-slate-200">
+              <Button onClick={() => submitRoute()} disabled={isSubmitting} className="w-full bg-[#005A8C] hover:bg-[#004870] shadow-sm flex items-center justify-center gap-2 py-6 text-base font-semibold">
+                {isSubmitting && (
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {isSubmitting ? "Generating Optimal Routes..." : "Optimize Route"}
+              </Button>
+              {error && <p className="text-xs text-red-500 mt-2 text-center">{error}</p>}
+            </div>
+
           </CardContent>
         </Card>
 
-        <RouteMap title="Route Geometry" points={selectedGeometryPoints} className="min-h-[420px]" />
-      </div>
+        {/* Bottom Right side: Route Alternatives */}
+        <div className="col-span-1 xl:col-span-8 flex flex-col gap-6 h-full"> 
+          {/* Top Card: Tradeoff Analysis */}
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+              <CardTitle className="text-lg">Tradeoff Analysis (Pareto)</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {result ? (
+                <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                  <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis type="number" dataKey="co2" name="CO2 Emissions (kg)" tickLine={false} axisLine={false} tickMargin={10} tick={{fill: '#64748b', fontSize: 12}} domain={['auto', 'auto']} label={{ value: 'CO2 Emissions (kg)', position: 'insideBottom', offset: -15, fill: '#64748b', fontSize: 12 }} />
+                    <YAxis type="number" dataKey="eta" name="ETA (mins)" tickLine={false} axisLine={false} tickMargin={10} tick={{fill: '#64748b', fontSize: 12}} domain={['auto', 'auto']} label={{ value: 'ETA (mins)', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 12 }} />
+                    <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent indicator="line" labelFormatter={(label, payload) => payload?.[0]?.payload?.label} />} />
+                    <Scatter data={chartData} fill="#005A8C" line={{ stroke: '#94a3b8', strokeWidth: 1 }}>
+                      {chartData.map((entry, index) => {
+                        const isFastest = entry.label === "fastest";
+                        const isLowest = entry.label === "lowest_emission";
+                        const color = isFastest ? "#d97706" : isLowest ? "#059669" : "#005A8C";
+                        return <Cell key={`cell-${index}`} fill={color} r={isFastest || isLowest ? 14 : 10} stroke="white" strokeWidth={2} />
+                      })}
+                    </Scatter>
+                  </ScatterChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[220px] flex items-center justify-center text-slate-400 text-sm">Run optimization to view tradeoffs.</div>
+              )}
+            </CardContent>
+          </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>ETA vs CO2 Pareto Chart</CardTitle>
-            <CardDescription>Lower left is usually the strongest tradeoff zone.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-80 w-full">
-              <ScatterChart margin={{top: 10, right: 20, bottom: 20, left: 0}}>
-                <CartesianGrid vertical={false} />
-                <XAxis type="number" dataKey="eta" name="ETA" unit=" min" />
-                <YAxis type="number" dataKey="co2" name="CO2" unit=" kg" />
-                <ChartTooltip cursor={{strokeDasharray: "3 3"}} content={<ChartTooltipContent indicator="dot" />} />
-                <Scatter data={chartData} fill="var(--color-eta)" />
-              </ScatterChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Route Alternatives</CardTitle>
-            <CardDescription>Each option includes ETA, CO2, cost, and SLA risk.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead>ETA</TableHead>
-                  <TableHead>CO2</TableHead>
-                  <TableHead>Cost</TableHead>
-                  <TableHead>Risk</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {result.pareto_solutions.map((item) => (
-                  <TableRow key={item.index}>
-                    <TableCell className="font-medium">{item.label}</TableCell>
-                    <TableCell>{item.travel_time_min} min</TableCell>
-                    <TableCell>{formatNumber(item.co2_kg, 1)} kg</TableCell>
-                    <TableCell>Rp {formatNumber(item.fuel_cost_idr, 0)}</TableCell>
-                    <TableCell>{formatNumber(item.sla_risk_score, 0)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+          {/* Bottom Card: Route Alternatives */}
+          <Card className="shadow-sm border-slate-200 flex-1">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Route Alternatives</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {result ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-slate-50/50">
+                      <TableRow className="border-b border-slate-100">
+                        <TableHead className="w-[200px] text-xs font-semibold text-slate-500 uppercase tracking-wider pl-6">Route Label</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">ETA (Mins)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Distance (km)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Est. Cost</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Est. CO2 (kg)</TableHead>
+                        <TableHead className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">SLA Risk</TableHead>
+                        <TableHead className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider pr-6"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.pareto_solutions.map((sol, index) => {
+                        const isFastest = sol.label === "fastest";
+                        const isLowest = sol.label === "lowest_emission";
+                        
+                        return (
+                          <TableRow 
+                            key={index} 
+                            className={`hover:bg-slate-50/50 cursor-pointer ${selectedRouteIndex === index ? 'bg-blue-50/40 border-l-2 border-l-[#005A8C]' : ''}`}
+                            onClick={() => setSelectedRouteIndex(index)}
+                          >
+                            <TableCell className="pl-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                  {isFastest || isLowest ? <span className="text-[#005A8C]">★</span> : null}
+                                  Option {String.fromCharCode(65 + index)}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">
+                                  ({isFastest ? "Fastest" : isLowest ? "Lowest Emission" : "Balanced"})
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.travel_time_min}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{(sol.travel_time_min * 35 / 60 / 1.25).toFixed(1)}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">Rp {formatNumber(sol.fuel_cost_idr, 0)}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.co2_kg.toFixed(1)}</TableCell>
+                            <TableCell className="text-center">
+                              <span className={`inline-flex items-center justify-center px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${sol.sla_risk_score >= 70 ? 'bg-[#fee2e2] text-[#991b1b]' : 'bg-[#e2e8f0] text-[#475569]'}`}>
+                                {sol.sla_risk_score >= 70 ? 'High' : 'Low'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
+                              <Dialog>
+                                <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 border border-slate-200 shadow-sm h-8 rounded-md px-3 bg-white hover:bg-slate-100 text-slate-700">
+                                    Explain
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md">
+                                  <DialogHeader>
+                                    <DialogTitle>AI Calculation Details</DialogTitle>
+                                    <DialogDescription>
+                                      How this route option was evaluated by the Multi-Objective Optimizer (NSGA-II).
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                    <div className="flex flex-col gap-1 text-sm border-b border-slate-100 pb-3">
+                                      <span className="font-semibold text-slate-900">1. Route Permutation</span>
+                                      <span className="text-slate-600">The Traveling Salesperson sequence was brute-forced/mutated. This option covers {sol.stops_order?.length ?? waypoints.length} stops traversing {(sol.travel_time_min * 35 / 60 / 1.25).toFixed(1)} km.</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1 text-sm border-b border-slate-100 pb-3">
+                                      <span className="font-semibold text-slate-900">2. ETA & Delay Risk (AI)</span>
+                                      <span className="text-slate-600">LightGBM predicted the delivery delay taking traffic multiplier and hub dwell times into account. Resulting SLA Risk: {sol.sla_risk_score}%.</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1 text-sm pb-3">
+                                      <span className="font-semibold text-slate-900">3. Carbon Emissions (GLEC)</span>
+                                      <span className="text-slate-600">Formula: <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">Distance × (1.0 + Load(Ton)) × Emission_Factor</code>. Resulting in {sol.co2_kg.toFixed(2)} kg.</span>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="min-h-[200px] flex items-center justify-center p-8 text-center">
+                  <div className="max-w-[280px]">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-slate-400 text-xl">⚡</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-1">No Routes Generated</h3>
+                    <p className="text-xs text-slate-500">Run optimization to see Pareto front route alternatives.</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        </div>
       </div>
     </div>
   )

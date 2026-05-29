@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import path from 'path';
 
 /**
  * Konfigurasi Next.js dengan strategi caching yang dibedakan antara
@@ -78,16 +77,12 @@ const nextConfig: NextConfig = {
       "date-fns",
       "clsx",
       "tailwind-merge",
-      "recharts",
-      "@tanstack/react-table"
+      "recharts"
     ]
   },
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  // turbopack: {
-  //   root: path.join(__dirname, '../..'),
-  // },
 };
 
 export default nextConfig;

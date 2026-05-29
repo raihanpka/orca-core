@@ -58,7 +58,13 @@ CREATE TABLE IF NOT EXISTS shipment_predictions (
   features_json JSONB
 );
 SELECT create_hypertable('shipment_predictions', 'time', if_not_exists => TRUE);
+-- Opt #2: Existing index covers DISTINCT ON (shipment_id ORDER BY time DESC) in the CTE.
 CREATE INDEX IF NOT EXISTS idx_predictions_shipment ON shipment_predictions(shipment_id, time DESC);
+-- Opt #2: Composite index for cursor-based pagination (WHERE status='in_transit' AND id > cursor).
+CREATE INDEX IF NOT EXISTS idx_shipments_status_id ON shipments (status, id) WHERE status = 'in_transit';
+-- Opt #2: Partial index speeds up the total_at_risk COUNT subquery.
+CREATE INDEX IF NOT EXISTS idx_predictions_at_risk ON shipment_predictions (shipment_id)
+  WHERE sla_risk_score >= 70;
 
 CREATE TABLE IF NOT EXISTS carbon_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

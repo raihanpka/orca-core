@@ -11,6 +11,7 @@
 # OS Files
 *.DS_Store
 **/.DS_Store
+*cache/
 __MACOSX/
 .cursor
 .claude
@@ -21,43 +22,33 @@ apps/orca-ai/.venv/
 apps/orca-web/node_modules/
 apps/orca-web/.next/
 apps/orca-web/.pnpm-store/
+.pnpm-store/
 data/raw/olist/*
 data/processed/*
+apps/orca-ai/orca_ai.egg-info/
 !data/raw/.gitkeep
 !data/raw/olist/.gitkeep
 !data/raw/olist/README.md
 !data/processed/.gitkeep
+!data/processed/hub_zone_encoder.pkl
+!data/processed/model_meta.json
+!data/processed/feature_metadata.json
+!data/processed/osmnx/
+!data/processed/osmnx/.gitkeep
 mlruns/*
 !mlruns/.gitkeep
 
-### Go ###
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
+# Large map files
+*.osm
+*.pbf
+*.graphml
 
 ### NextJS ###
 # dependencies
 /node_modules
 /.pnp
 .pnp.js
+*.pnpm-store
 
 # testing
 /coverage

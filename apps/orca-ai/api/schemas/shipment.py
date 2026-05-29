@@ -15,9 +15,22 @@ class ShipmentSummary(BaseModel):
     sla_risk_score: float | None = None
     predicted_delay_hours: float | None = None
     co2_kg: float | None = None
+    distance_km: float | None = None
+    load_weight_kg: float | None = None
     status: str
     intervention_recommended: str | None = None
 
+
+class CreateShipmentRequest(BaseModel):
+    origin_hub_id: str
+    destination_zone: str
+    customer_lat: float
+    customer_lng: float
+    vehicle_type: str
+    load_weight_kg: float
+    item_count: int
+    sla_deadline: datetime
+    external_id: str | None = None
 
 class ActiveShipmentsResponse(BaseModel):
     shipments: list[ShipmentSummary]
