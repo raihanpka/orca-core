@@ -1,7 +1,7 @@
 UV ?= uv
 PNPM ?= pnpm
 
-.PHONY: install infra-up infra-down dev dev-ml dev-down dev-ai dev-engine dev-web download-data build-features seed-db train evaluate validate-shap evaluate-segments evaluate-full simulate test test-ai test-engine clean
+.PHONY: install infra-up infra-down dev dev-ml dev-down dev-ai dev-engine dev-web download-data download-delhivery build-features build-delhivery seed-db train evaluate validate-shap evaluate-segments evaluate-full setup-osmnx simulate test test-ai test-engine clean
 
 install:
 	cd apps/orca-ai && $(UV) sync --extra dev
@@ -35,8 +35,17 @@ dev-web:
 download-data:
 	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/download_olist.py
 
+download-delhivery:
+	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/download_delhivery.py
+
 build-features:
 	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/build_features.py
+
+build-delhivery:
+	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/build_delhivery_features.py
+
+setup-osmnx:
+	cd apps/orca-ai && $(UV) run python ../../scripts/setup/download_jakarta_graph.py
 
 seed-db:
 	cd apps/orca-ai && $(UV) run python ../../scripts/ingest/seed_db.py
