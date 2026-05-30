@@ -43,6 +43,7 @@ const chartConfig = {
 export default function OptimizePage() {
   const { data: vehicleResponse } = useSWR<{vehicles: string[]}>("/optimize/vehicles", apiFetch)
   const { data: hubsResponse } = useSWR<{hubs: Array<{id: string, name: string, lat: number, lng: number}>}>("/hubs/", apiFetch)
+  const { data: shipmentsData } = useSWR<{ shipments: any[] }>("/shipments/active?limit=50", apiFetch)
 
   const availableVehicles = vehicleResponse?.vehicles ?? ["van_diesel", "truck_lt35t", "truck_gt75t", "scooter_electric"];
   const availableHubs = hubsResponse?.hubs ?? [
@@ -56,6 +57,11 @@ export default function OptimizePage() {
   const [originHubId, setOriginHubId] = useState("hub_pasar_minggu")
   const [focusPoint, setFocusPoint] = useState<[number, number] | null>(null)
   const [waypoints, setWaypoints] = useState<Array<{id: string, lat: number, lng: number, weight: number}>>([])
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string>("")
+  
+  const atRiskShipments = useMemo(() => {
+    return (shipmentsData?.shipments || []).filter(s => s.sla_risk_score >= 70)
+  }, [shipmentsData])
 
   const [result, setResult] = useState<RouteOptimizationResponse | null>(null)
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
@@ -165,12 +171,12 @@ export default function OptimizePage() {
 
       <div className="flex flex-col gap-6">
         {/* Top: Full Width Map */}
-        <Card className="w-full shadow-sm border-slate-200 flex flex-col min-h-[450px]">
-          <CardContent className="p-0 flex-1 relative min-h-[400px]">
+        <Card className="w-full shadow-sm border-slate-200 flex flex-col h-[600px] overflow-hidden rounded-xl p-0 !py-0">
+          <CardContent className="p-0 !p-0 flex-1 relative h-full">
             <RouteMap 
               points={selectedGeometryPoints} 
               routeLine={routeLine}
-              className="absolute inset-0 w-full h-full border-0 rounded-b-xl" 
+              className="absolute inset-0 w-full h-full border-0 rounded-xl" 
             />
           </CardContent>
         </Card>
@@ -182,6 +188,38 @@ export default function OptimizePage() {
             <CardTitle className="text-lg">Route Configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
+            {atRiskShipments.length > 0 && (
+              <div className="flex flex-col gap-1.5 p-3 bg-red-50/50 border border-red-100 rounded-md">
+                <Label className="text-xs font-semibold text-red-900">Load At-Risk Shipment (Seamless Flow)</Label>
+                <Select value={selectedShipmentId} onValueChange={(val: string | null) => {
+                  setSelectedShipmentId(val || "")
+                  const shipment = atRiskShipments.find(s => s.id === val)
+                  if (shipment) {
+                    setOriginHubId(shipment.origin_hub_id)
+                    setVehicleType(shipment.vehicle_type)
+                    setWaypoints([{
+                      id: crypto.randomUUID(),
+                      lat: -6.200, // Dummy fallback, ideally geocoded
+                      lng: 106.816,
+                      weight: shipment.load_weight_kg || 10
+                    }])
+                    setResult(null)
+                  }
+                }}>
+                  <SelectTrigger className="h-9 text-sm bg-white border-red-200">
+                    <SelectValue placeholder="Select At-Risk Shipment to optimize..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {atRiskShipments.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.external_id ?? s.id.slice(0, 8)} - Risk: {s.sla_risk_score.toFixed(0)}%
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Timeline Input */}
             <div className="relative ml-2 space-y-6 before:absolute before:inset-0 before:ml-[7px] before:w-0.5 before:-translate-x-px before:bg-slate-200">
               <div className="relative flex items-start gap-4">
@@ -194,14 +232,14 @@ export default function OptimizePage() {
                     const hub = availableHubs.find(h => h.id === val)
                     if (hub) setFocusPoint([hub.lng, hub.lat])
                   }}>
-                  <SelectTrigger>
+                  <SelectTrigger className="text-sm h-10 bg-white">
                     <SelectValue placeholder="Select Origin">
-                      {availableHubs.find((h) => h.id === originHubId)?.name || toTitleCase(originHubId)}
+                      {toTitleCase(availableHubs.find((h) => h.id === originHubId)?.name.replace(/^Hub /i, '') || originHubId.replace(/^hub_/, ''))}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {availableHubs.map((h) => (
-                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                      <SelectItem key={h.id} value={h.id}>{toTitleCase(h.name.replace(/^Hub /i, ''))}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -213,14 +251,14 @@ export default function OptimizePage() {
                 return (
                 <div key={wp.id} className="relative flex items-start gap-4">
                   <div className="h-4 w-4 mt-2.5 rounded-full bg-white border-2 border-slate-300 shadow-sm z-10" />
-                  <div className="flex-1 space-y-1">
+                  <div className="flex-1 space-y-1 overflow-hidden">
                     <div className="flex justify-between items-center">
-                      <Label className="text-xs font-semibold text-slate-600">
-                        Stop {index + 1} {matchedHub ? <span className="font-normal text-slate-400 ml-1">{matchedHub.name}</span> : null}
+                      <Label className="text-sm font-semibold text-slate-800">
+                        Stop {index + 1} {matchedHub ? <span className="font-medium text-slate-500 ml-1">({toTitleCase(matchedHub.name.replace(/^Hub /i, ''))})</span> : null}
                       </Label>
                       {waypoints.length > 1 && (
-                        <button onClick={() => handleRemoveWaypoint(wp.id)} className="text-slate-400 hover:text-red-500">
-                          <Trash2Icon className="h-3 w-3" />
+                        <button onClick={() => handleRemoveWaypoint(wp.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+                          <Trash2Icon className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
@@ -231,26 +269,26 @@ export default function OptimizePage() {
                         const hub = availableHubs.find(h => h.id === val)
                         if (hub) setFocusPoint([hub.lng, hub.lat])
                       }}>
-                        <SelectTrigger className="h-8 text-xs bg-white w-full">
+                        <SelectTrigger className="h-10 text-sm bg-white w-full">
                           <SelectValue placeholder="Quick Pick Hub...">
-                            {matchedHub ? matchedHub.name : "Quick Pick Hub..."}
+                            {matchedHub ? toTitleCase(matchedHub.name.replace(/^Hub /i, '')) : "Quick Pick Hub..."}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent className="w-[--radix-select-trigger-width]">
-                          {availableHubs.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                          {availableHubs.map(h => <SelectItem key={h.id} value={h.id}>{toTitleCase(h.name.replace(/^Hub /i, ''))}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <div className="grid grid-cols-[1fr_1fr_6.5rem] gap-2">
+                      <div className="grid grid-cols-[1fr_1fr_4rem] sm:grid-cols-[1fr_1fr_5rem] gap-2">
                         <Input type="number" step="0.001" value={wp.lat} onChange={e => {
                           const v = parseFloat(e.target.value) || 0
                           handleUpdateWaypoint(wp.id, 'lat', v)
                           setFocusPoint([wp.lng, v])
-                        }} className="h-8 bg-white text-xs w-full" placeholder="Lat" />
+                        }} className="h-8 bg-white text-xs w-full px-2" placeholder="Lat" />
                         <Input type="number" step="0.001" value={wp.lng} onChange={e => {
                           const v = parseFloat(e.target.value) || 0
                           handleUpdateWaypoint(wp.id, 'lng', v)
                           setFocusPoint([v, wp.lat])
-                        }} className="h-8 bg-white text-xs w-full" placeholder="Lng" />
+                        }} className="h-8 bg-white text-xs w-full px-2" placeholder="Lng" />
                         <div className="relative w-full">
                           <Input 
                             type="number" 

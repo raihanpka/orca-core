@@ -11,5 +11,10 @@ echo "Running initial seeding (idempotent)..."
 # Use the pre-installed python environment directly to avoid permission issues with .venv creation
 python scripts/ingest/seed_db.py
 
-echo "Starting ORCA AI Server..."
-exec uvicorn main:app --host 0.0.0.0 --port 8000
+if [ $# -eq 0 ]; then
+    echo "Starting ORCA AI Server..."
+    exec uvicorn main:app --host 0.0.0.0 --port 8000
+else
+    echo "Running command: $@"
+    exec "$@"
+fi

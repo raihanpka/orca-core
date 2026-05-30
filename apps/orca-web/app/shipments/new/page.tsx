@@ -20,7 +20,7 @@ export default function NewShipmentPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [formData, setFormData] = useState({
     origin_hub_id: "hub_jakarta_selatan",
     destination_zone: "",
@@ -38,7 +38,7 @@ export default function NewShipmentPage() {
     d.setDate(d.getDate() + 2)
     // format as YYYY-MM-DDThh:mm
     const tzoffset = d.getTimezoneOffset() * 60000; //offset in milliseconds
-    const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0,16);
+    const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
     setFormData(prev => ({ ...prev, sla_deadline: localISOTime }))
   })
 
@@ -102,9 +102,9 @@ export default function NewShipmentPage() {
           Back to Dashboard
         </Button>
       </div>
-      
+
       <p className="text-muted-foreground">
-        Masukkan data pengiriman manual. ORCA AI akan otomatis menghitung jarak asli di jalan raya (menggunakan GraphML Peta), memprediksi delay, dan menghitung emisi karbon GLEC.
+        Enter the shipping data manually. ORCA AI will automatically calculate the actual distance on the road (using GraphML Maps and Stadia API), predict delays, and calculate GLEC carbon emissions.
       </p>
 
       {error && (
@@ -129,48 +129,53 @@ export default function NewShipmentPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 gap-8">
-              
+
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><MapPinIcon className="w-4 h-4 text-blue-500" /> Origin Hub</Label>
-                <Select value={formData.origin_hub_id} onValueChange={(v) => v && setFormData({...formData, origin_hub_id: v})}>
-                  <SelectTrigger>
+                <Select value={formData.origin_hub_id} onValueChange={(v) => v && setFormData({ ...formData, origin_hub_id: v })}>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Origin">
-                      {formData.origin_hub_id ? toTitleCase(formData.origin_hub_id) : "Select Origin"}
+                      {formData.origin_hub_id ? toTitleCase(formData.origin_hub_id.replace(/^hub_/, '')) : "Select Origin"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hub_jakarta_selatan">Hub Jakarta Selatan</SelectItem>
-                    <SelectItem value="hub_jakarta_utara">Hub Jakarta Utara</SelectItem>
-                    <SelectItem value="hub_bogor">Hub Bogor</SelectItem>
-                    <SelectItem value="hub_depok">Hub Depok</SelectItem>
+                  <SelectContent className="w-full min-w-[var(--radix-select-trigger-width)]">
+                    <SelectItem value="hub_jakarta_selatan">Jakarta Selatan</SelectItem>
+                    <SelectItem value="hub_jakarta_utara">Jakarta Utara</SelectItem>
+                    <SelectItem value="hub_bogor">Bogor</SelectItem>
+                    <SelectItem value="hub_depok">Depok</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><MapPinIcon className="w-4 h-4 text-green-500" /> Destination Label (Desa/Kecamatan)</Label>
-                <Input required placeholder="e.g. Dramaga, Bogor" value={formData.destination_zone} onChange={(e) => setFormData({...formData, destination_zone: e.target.value})} />
+                <Input required placeholder="e.g. Dramaga, Bogor" value={formData.destination_zone} onChange={(e) => setFormData({ ...formData, destination_zone: e.target.value })} />
               </div>
 
               <div className="space-y-2">
                 <Label>Destination Latitude (LU/LS)</Label>
-                <Input required type="number" step="any" placeholder="-6.5960" value={formData.customer_lat} onChange={(e) => setFormData({...formData, customer_lat: e.target.value})} />
+                <Input required type="number" step="any" placeholder="-6.5960" value={formData.customer_lat} onChange={(e) => setFormData({ ...formData, customer_lat: e.target.value })} />
               </div>
 
               <div className="space-y-2">
                 <Label>Destination Longitude (BT/BB)</Label>
-                <Input required type="number" step="any" placeholder="106.7970" value={formData.customer_lng} onChange={(e) => setFormData({...formData, customer_lng: e.target.value})} />
+                <Input required type="number" step="any" placeholder="106.7970" value={formData.customer_lng} onChange={(e) => setFormData({ ...formData, customer_lng: e.target.value })} />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><TruckIcon className="w-4 h-4 text-amber-500" /> Vehicle Type</Label>
-                <Select value={formData.vehicle_type} onValueChange={(v) => v && setFormData({...formData, vehicle_type: v})}>
+                <Select value={formData.vehicle_type} onValueChange={(v) => v && setFormData({ ...formData, vehicle_type: v })}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Vehicle">
-                      {formData.vehicle_type ? toTitleCase(formData.vehicle_type) : "Select Vehicle"}
+                      {formData.vehicle_type === "van_diesel" ? "Diesel Van (< 3.5t)" :
+                        formData.vehicle_type === "truck_lt35t" ? "Light Truck (< 3.5t)" :
+                          formData.vehicle_type === "truck_35_75t" ? "Medium Truck (3.5 - 7.5t)" :
+                            formData.vehicle_type === "truck_gt75t" ? "Heavy Truck (> 7.5t)" :
+                              formData.vehicle_type === "scooter_electric" ? "EV Scooter (Last Mile)" :
+                                toTitleCase(formData.vehicle_type)}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="w-full">
+                  <SelectContent className="w-full min-w-[var(--radix-select-trigger-width)]">
                     <SelectItem value="van_diesel">Diesel Van (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_lt35t">Light Truck (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_35_75t">Medium Truck (3.5 - 7.5t)</SelectItem>
@@ -182,17 +187,17 @@ export default function NewShipmentPage() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-purple-500" /> SLA Deadline</Label>
-                <Input required type="datetime-local" value={formData.sla_deadline} onChange={(e) => setFormData({...formData, sla_deadline: e.target.value})} />
+                <Input required type="datetime-local" value={formData.sla_deadline} onChange={(e) => setFormData({ ...formData, sla_deadline: e.target.value })} />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><PackageIcon className="w-4 h-4 text-slate-500" /> Total Weight (kg)</Label>
-                <Input required type="number" min="0.1" step="0.1" value={formData.load_weight_kg} onChange={(e) => setFormData({...formData, load_weight_kg: e.target.value})} />
+                <Input required type="number" min="0.1" step="0.1" value={formData.load_weight_kg} onChange={(e) => setFormData({ ...formData, load_weight_kg: e.target.value })} />
               </div>
 
               <div className="space-y-2">
                 <Label>Item Count (boxes/packages)</Label>
-                <Input required type="number" min="1" step="1" value={formData.item_count} onChange={(e) => setFormData({...formData, item_count: e.target.value})} />
+                <Input required type="number" min="1" step="1" value={formData.item_count} onChange={(e) => setFormData({ ...formData, item_count: e.target.value })} />
               </div>
 
             </div>

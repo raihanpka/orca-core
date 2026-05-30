@@ -126,7 +126,24 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
         prediction_records.append((shipment_id, payload, features))
         carbon_records.append((shipment_id, features["distance_km"], float(row["load_weight_kg"] or 1.0), row["vehicle_type"]))
         if risk_score >= 70.0:
-            alert_records.append((shipment_id, risk_score, "Dispatch via Alternate Route"))
+            contributions = _shap_contributions(
+                request.app.state.shap_explainer,
+                request.app.state.delay_model,
+                request.app.state.label_encoder,
+                features
+            )
+            top_feature = contributions[0]["feature"] if contributions else "distance_km"
+            if top_feature == "weather_severity_score":
+                msg = "Heavy weather risk detected, consider proactive delay notification or safer route."
+            elif top_feature == "historical_hub_delay_rate":
+                msg = "Hub congestion is severely impacting SLA, recommend alternative dispatch route."
+            elif top_feature == "distance_km":
+                msg = "Long distance delivery risk, prioritize early dispatch."
+            elif top_feature == "estimated_delivery_days":
+                msg = "Tight delivery window detected, upgrade vehicle class or prioritize."
+            else:
+                msg = "AI detected SLA breach risk. Monitor closely."
+            alert_records.append((shipment_id, risk_score, msg))
 
     await bulk_insert_prediction_cache(request.app.state.db_pool, prediction_records)
     await bulk_insert_carbon_records(request.app.state.db_pool, carbon_records)
@@ -292,7 +309,7 @@ async def active_shipments(
                 "distance_km": float(row["distance_km"]) if row["distance_km"] is not None else None,
                 "load_weight_kg": float(row["load_weight_kg"]) if row["load_weight_kg"] is not None else None,
                 "status": row["status"],
-                "intervention_recommended": _intervention(risk),
+                "intervention_recommended": risk is not None and risk >= 70.0,
             }
         )
     return ok({"shipments": shipments, "next_cursor": next_cursor, "total_at_risk": total_at_risk})

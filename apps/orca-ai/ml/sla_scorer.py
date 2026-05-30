@@ -11,7 +11,7 @@ from __future__ import annotations
 def compute_sla_risk(
     delay_probability: float,
     remaining_hours: float,
-    amplifier: float = 4.0,
+    amplifier: float = 2.0,
 ) -> tuple[float, str]:
     """Compute SLA risk score [0, 100] and urgency tier.
 
