@@ -61,6 +61,21 @@ async def _get_cached_hub_rates(hub_id: str, request: Request) -> dict[str, floa
 
     return rates
 
+def _parse_features_json(raw) -> dict:
+    """Normalize features_json from DB (dict, JSON string, or None) to a dict."""
+    if raw is None:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    return {}
+
+
 def _features_from_shipment(row, historical_rates: dict | None = None) -> dict:
     dispatched = row["dispatched_at"] or row["created_at"]
     now = datetime.now(timezone.utc)
@@ -129,6 +144,7 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
             prediction["delay_probability"],
             features["remaining_hours_to_sla"],
             amplifier=amplifier,
+            distance_km=features["distance_km"],
         )
         shipment_id = str(row["id"])
         payload = {
@@ -150,7 +166,22 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
     return fallback_by_id
 
 
+def _live_sla_risk(row, delay_probability: float | None, amplifier: float) -> float | None:
+    """Recompute SLA risk from stored delay_prob + live remaining time + distance."""
+    if delay_probability is None:
+        return None
+    deadline = row["sla_deadline"]
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    remaining = max((deadline - datetime.now(timezone.utc)).total_seconds() / 3600, 0.0)
+    distance = float(row["distance_km"] or 0) or None
+    risk, _ = compute_sla_risk(delay_probability, remaining, amplifier=amplifier, distance_km=distance)
+    return risk
+
+
 def _fallback_contributions(features: dict) -> list[dict]:
+    if not isinstance(features, dict):
+        features = _parse_features_json(features)
     weights = {
         "distance_km": 0.18,
         "estimated_delivery_days": -0.06,
@@ -182,6 +213,9 @@ def _shap_contributions(explainer: object | None, model: object, label_encoder: 
     Falls back to the rule-based _fallback_contributions if the explainer is
     unavailable or SHAP raises an unexpected error.
     """
+    features = _parse_features_json(features)
+    if not features:
+        return []
     if explainer is None:
         return _fallback_contributions(features)
     try:
@@ -278,6 +312,7 @@ async def active_shipments(
     )
     shipments = []
     fallback_predictions = await _batch_fallback_predictions(request, rows)
+    amplifier = get_settings().sla_risk_amplifier
     for row in rows:
         shipment_id = str(row["id"])
         fallback = fallback_predictions.get(shipment_id)
@@ -289,7 +324,7 @@ async def active_shipments(
         risk = (
             fallback["sla_risk_score"]
             if fallback
-            else float(row["sla_risk_score"]) if row["sla_risk_score"] is not None else None
+            else _live_sla_risk(row, delay_probability, amplifier)
         )
         predicted_delay_hours = (
             fallback["predicted_delay_hours"]
@@ -354,9 +389,78 @@ async def get_shipment_detail(shipment_id: str, request: Request):
     })
 
 
+async def _ensure_prediction(request: Request, shipment_id: str):
+    """Return latest prediction row, running on-demand inference if missing."""
+    pool = request.app.state.db_pool
+    prediction = await get_latest_prediction(pool, shipment_id)
+    if prediction is not None:
+        return prediction
+
+    row = await get_shipment(pool, shipment_id)
+    if row is None:
+        return None
+
+    batch_row = {
+        "id": row["id"],
+        "dispatched_at": row["dispatched_at"],
+        "created_at": row["created_at"],
+        "sla_deadline": row["sla_deadline"],
+        "distance_km": row["distance_km"],
+        "origin_hub_id": row["origin_hub_id"],
+        "customer_lat": row["customer_lat"],
+        "customer_lng": row["customer_lng"],
+        "item_count": row["item_count"],
+        "load_weight_kg": row["load_weight_kg"],
+        "vehicle_type": row["vehicle_type"],
+        "delay_probability": None,
+    }
+    await _batch_fallback_predictions(request, [batch_row])
+    return await get_latest_prediction(pool, shipment_id)
+
+
+def _prediction_response(shipment_id: str, prediction, request: Request, shipment_row=None) -> dict:
+    features = _parse_features_json(prediction["features_json"])
+    shap_values = _shap_contributions(
+        request.app.state.shap_explainer,
+        request.app.state.delay_model,
+        request.app.state.label_encoder,
+        features,
+    )
+    delay_prob = float(prediction["delay_probability"])
+    distance_km = float(features.get("distance_km") or 0) or None
+    remaining_hours = float(features.get("remaining_hours_to_sla") or 0)
+
+    if shipment_row is not None:
+        deadline = shipment_row["sla_deadline"]
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        remaining_hours = max((deadline - datetime.now(timezone.utc)).total_seconds() / 3600, 0.0)
+        if not distance_km:
+            distance_km = float(shipment_row["distance_km"] or 0) or None
+
+    amplifier = get_settings().sla_risk_amplifier
+    risk, _ = compute_sla_risk(
+        delay_prob,
+        remaining_hours,
+        amplifier=amplifier,
+        distance_km=distance_km,
+    )
+    return {
+        "shipment_id": shipment_id,
+        "delay_probability": delay_prob,
+        "sla_risk_score": risk,
+        "predicted_delay_hours": float(prediction["predicted_delay_hrs"] or 0),
+        "model_version": prediction["model_version"] or request.app.state.model_version,
+        "shap_contributions": shap_values,
+        "intervention_options": ["reroute_via_toll", "notify_customer_proactively", "escalate_to_courier_manager"]
+        if risk >= 70
+        else ["monitor"],
+    }
+
+
 @router.get("/{shipment_id}/prediction")
 async def shipment_prediction(shipment_id: str, request: Request):
-    prediction = await get_latest_prediction(request.app.state.db_pool, shipment_id)
+    prediction = await _ensure_prediction(request, shipment_id)
     if prediction is None:
         return ok(
             {
@@ -369,31 +473,8 @@ async def shipment_prediction(shipment_id: str, request: Request):
                 "intervention_options": ["monitor"],
             }
         )
-    features = prediction["features_json"] or {}
-    shap_values = (
-        _shap_contributions(
-            request.app.state.shap_explainer,
-            request.app.state.delay_model,
-            request.app.state.label_encoder,
-            features,
-        )
-        if features
-        else []
-    )
-    risk = float(prediction["sla_risk_score"])
-    return ok(
-        {
-            "shipment_id": shipment_id,
-            "delay_probability": float(prediction["delay_probability"]),
-            "sla_risk_score": risk,
-            "predicted_delay_hours": float(prediction["predicted_delay_hrs"] or 0),
-            "model_version": prediction["model_version"] or request.app.state.model_version,
-            "shap_contributions": shap_values,
-            "intervention_options": ["reroute_via_toll", "notify_customer_proactively", "escalate_to_courier_manager"]
-            if risk >= 70
-            else ["monitor"],
-        }
-    )
+    shipment_row = await get_shipment(request.app.state.db_pool, shipment_id)
+    return ok(_prediction_response(shipment_id, prediction, request, shipment_row))
 
 
 @router.get("/{shipment_id}/events")

@@ -31,7 +31,7 @@ async def predict_delay(payload: InternalPredictRequest, request: Request):
         request.app.state.model_version,
     )
     result = predictor.predict(row)
-    risk_score, _ = compute_sla_risk(result["delay_probability"], payload.remaining_hours_to_sla)
+    risk_score, _ = compute_sla_risk(result["delay_probability"], payload.remaining_hours_to_sla, distance_km=payload.distance_km)
     response = {
         "shipment_id": payload.shipment_id,
         "delay_probability": result["delay_probability"],
