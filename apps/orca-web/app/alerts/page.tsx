@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { SearchIcon, CalendarIcon, CheckIcon, XIcon, AlertTriangleIcon, BellIcon, InfoIcon } from "lucide-react"
+import { SearchIcon, CalendarIcon, CheckIcon, XIcon, AlertTriangleIcon, BellIcon, InfoIcon, ChevronRightIcon, ChevronLeftIcon } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -138,7 +138,7 @@ export default function AlertsPage() {
                         {acknowledgedIds.has(alert.id) ? "Acknowledged" : "Dispatched"}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-slate-400">›</TableCell>
+                    <TableCell className="text-right text-slate-400"><ChevronRightIcon className="h-4 w-4 ml-auto" /></TableCell>
                   </TableRow>
                 )
               }) : (
@@ -153,8 +153,8 @@ export default function AlertsPage() {
           <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500 flex justify-between">
             <span>Showing {filteredAlerts.length} alerts</span>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled>‹</Button>
-              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled>›</Button>
+              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled><ChevronLeftIcon className="h-3 w-3" /></Button>
+              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled><ChevronRightIcon className="h-3 w-3" /></Button>
             </div>
           </div>
         </Card>
