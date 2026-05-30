@@ -30,7 +30,7 @@ HUBS = ["hub_cakung", "hub_kebon_jeruk", "hub_pasar_minggu", "hub_kelapa_gading"
 VEHICLES = ["van_diesel", "truck_lt35t", "truck_35_75t", "truck_gt75t", "scooter_electric"]
 
 async def main() -> None:
-    database_url = os.getenv("DATABASE_URL") or os.getenv("DEV_DATABASE_URL") or "postgresql://orca:orca_pass@localhost:5432/orca_db"
+    database_url = os.getenv("DEV_DATABASE_URL") or os.getenv("DATABASE_URL") or "postgresql://orca:orca_pass@localhost:5439/orca_db"
     conn = await asyncpg.connect(database_url)
     
     seed_count = 30
@@ -79,7 +79,7 @@ async def main() -> None:
         )
         
     await conn.close()
-    print(f"✅ Berhasil menyisipkan {len(records)} seed data awal secara batch!")
+    print(f"Berhasil menyisipkan {len(records)} seed data awal secara batch!")
 
 if __name__ == "__main__":
     asyncio.run(main())
