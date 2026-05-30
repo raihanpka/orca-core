@@ -16,7 +16,7 @@ from core.mlflow_client import load_production_model
 from core.security import validate_public_token
 from core.subscriber import run_subscriber
 from db.connection import create_pool
-from ml.osmnx_provider import get_road_network_provider
+from ml.osmnx_provider import get_road_network_provider, RoadNetworkProvider
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("orca-ai")
@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     app.state.delay_model = model
     app.state.label_encoder = encoder
     app.state.model_version = version
+    app.state.road_provider = get_road_network_provider()
     app.state.db_pool = await create_pool(settings.database_url)
 
     # Opt #4: Pre-build SHAP Explainer once at startup so it is not
@@ -105,6 +106,14 @@ _public_paths_without_token = {"/", "/health", "/docs", "/redoc", "/openapi.json
 _internal_paths = {"/alerts/dispatch"}
 
 
+def _cors_headers(request: Request) -> dict:
+    return {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Token",
+    }
+
+
 @app.middleware("http")
 async def public_api_guard(request: Request, call_next):
     settings = get_settings()
@@ -118,24 +127,27 @@ async def public_api_guard(request: Request, call_next):
         hits = [hit for hit in _rate_limit_buckets.get(client_ip, []) if hit >= window_start]
         if len(hits) >= settings.public_rate_limit_per_minute:
             envelope = Envelope(success=False, data=None, error="rate limit exceeded")
-            return JSONResponse(status_code=429, content=envelope.model_dump(mode="json"))
+            return JSONResponse(status_code=429, content=envelope.model_dump(mode="json"), headers=_cors_headers(request))
         hits.append(now)
         _rate_limit_buckets[client_ip] = hits
         try:
-            validate_public_token(request.headers.get("X-API-Token"))
+            validate_public_token(
+                request.headers.get("X-API-Token"),
+                request.headers.get("Authorization"),
+            )
         except Exception as exc:
             status_code = getattr(exc, "status_code", 401)
             detail = getattr(exc, "detail", "unauthorized")
             envelope = Envelope(success=False, data=None, error=str(detail))
-            return JSONResponse(status_code=status_code, content=envelope.model_dump(mode="json"))
+            return JSONResponse(status_code=status_code, content=envelope.model_dump(mode="json"), headers=_cors_headers(request))
     return await call_next(request)
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(_: Request, exc: Exception):
+async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled request error")
     envelope = Envelope(success=False, data=None, error=str(exc))
-    return JSONResponse(status_code=500, content=envelope.model_dump(mode="json"))
+    return JSONResponse(status_code=500, content=envelope.model_dump(mode="json"), headers=_cors_headers(request))
 
 
 @app.get("/")
