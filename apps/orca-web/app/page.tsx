@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import useSWR from "swr"
 import { CartesianGrid, Bar, BarChart, XAxis, YAxis, PieChart, Pie, Cell, Label } from "recharts"
 

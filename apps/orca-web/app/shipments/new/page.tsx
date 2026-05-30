@@ -188,10 +188,15 @@ export default function NewShipmentPage() {
                 <Select value={formData.vehicle_type} onValueChange={(v) => v && setFormData({ ...formData, vehicle_type: v })}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Vehicle">
-                      {formData.vehicle_type ? toTitleCase(formData.vehicle_type) : "Select Vehicle"}
+                      {formData.vehicle_type === "van_diesel" ? "Diesel Van (< 3.5t)" :
+                        formData.vehicle_type === "truck_lt35t" ? "Light Truck (< 3.5t)" :
+                          formData.vehicle_type === "truck_35_75t" ? "Medium Truck (3.5 - 7.5t)" :
+                            formData.vehicle_type === "truck_gt75t" ? "Heavy Truck (> 7.5t)" :
+                              formData.vehicle_type === "scooter_electric" ? "EV Scooter (Last Mile)" :
+                                toTitleCase(formData.vehicle_type)}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="w-full">
+                  <SelectContent className="w-full min-w-[var(--radix-select-trigger-width)]">
                     <SelectItem value="van_diesel">Diesel Van (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_lt35t">Light Truck (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_35_75t">Medium Truck (3.5 - 7.5t)</SelectItem>

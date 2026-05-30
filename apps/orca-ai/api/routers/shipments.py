@@ -347,7 +347,7 @@ async def active_shipments(
                 "distance_km": float(row["distance_km"]) if row["distance_km"] is not None else None,
                 "load_weight_kg": float(row["load_weight_kg"]) if row["load_weight_kg"] is not None else None,
                 "status": row["status"],
-                "intervention_recommended": _intervention(risk),
+                "intervention_recommended": risk is not None and risk >= 70.0,
             }
         )
     return ok({"shipments": shipments, "next_cursor": next_cursor, "total_at_risk": total_at_risk})
