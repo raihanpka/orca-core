@@ -7,9 +7,10 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 export function SiteHeader() {
   const pathname = usePathname();
   
-  let title = "Dashboard";
+  let title = "Analytics Dashboard";
   if (pathname.includes("/optimize")) title = "Route Optimizer";
-  else if (pathname.includes("/analytics")) title = "Analytics";
+  else if (pathname.includes("/operations")) title = "Operations Hub";
+  else if (pathname.includes("/shipments/new")) title = "Add Shipment";
   else if (pathname.includes("/alerts")) title = "Alerts History";
 
   return (

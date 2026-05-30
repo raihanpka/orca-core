@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { SearchIcon, CalendarIcon, CheckIcon, XIcon, AlertTriangleIcon, BellIcon, InfoIcon, ChevronRightIcon, ChevronLeftIcon } from "lucide-react"
+import { SearchIcon, CalendarIcon, CheckIcon, XIcon, AlertTriangleIcon, BellIcon, InfoIcon, MailIcon } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,6 +15,7 @@ import { formatDateTime } from "@/lib/utils"
 import { toast } from "sonner"
 
 export default function AlertsPage() {
+  const router = useRouter()
   const { data: { alerts = [] } = {} } = useSWR<{alerts: RecentAlert[]}>("/alerts/recent", apiFetch, {
     refreshInterval: 15000,
   })
@@ -138,7 +140,7 @@ export default function AlertsPage() {
                         {acknowledgedIds.has(alert.id) ? "Acknowledged" : "Dispatched"}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-slate-400"><ChevronRightIcon className="h-4 w-4 ml-auto" /></TableCell>
+                    <TableCell className="text-right text-slate-400">›</TableCell>
                   </TableRow>
                 )
               }) : (
@@ -153,8 +155,8 @@ export default function AlertsPage() {
           <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500 flex justify-between">
             <span>Showing {filteredAlerts.length} alerts</span>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled><ChevronLeftIcon className="h-3 w-3" /></Button>
-              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled><ChevronRightIcon className="h-3 w-3" /></Button>
+              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled>‹</Button>
+              <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled>›</Button>
             </div>
           </div>
         </Card>
@@ -162,57 +164,93 @@ export default function AlertsPage() {
         {selectedAlert ? (
           <Card className="shadow-sm border-slate-200 bg-slate-50/50 sticky top-6">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-200 bg-white rounded-t-lg">
-              <CardTitle className="text-lg">Alert Logs & Details</CardTitle>
+              <div>
+                <CardTitle className="text-lg">Alert Logs & Details</CardTitle>
+                <div className="text-sm text-slate-500 mt-1 font-mono">
+                  {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)} &gt; Routing Exception
+                </div>
+              </div>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedAlert(null)}>
                 <XIcon className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="bg-white p-5 border-b border-slate-200 flex flex-col gap-4">
-                <div className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-500 uppercase font-semibold text-xs tracking-wider">Shipment ID</span>
-                  <span className="font-medium flex items-center gap-1 break-all">
-                    {selectedAlert.external_id ?? selectedAlert.shipment_id}
-                    <span className="text-slate-400 text-xs">↗</span>
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-500 uppercase font-semibold text-xs tracking-wider">Time</span>
-                  <span className="text-slate-900">
-                    {new Date(selectedAlert.created_at).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false })} UTC
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-5 space-y-4">
-                <div className="bg-white border border-slate-200 rounded-md p-4 space-y-2 shadow-sm">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Message Copy</div>
-                  <div className="text-sm font-medium">
-                    "SLA Risk {getRiskLevel(selectedAlert.sla_risk_score).label} for {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)} - {selectedAlert.intervention}"
+              <div className="p-5 space-y-6">
+                
+                {/* Risk Confidence Score */}
+                <div className="bg-white border border-slate-200 rounded-md p-4 flex gap-4 items-center shadow-sm">
+                  <div className={`text-3xl font-bold rounded-lg border w-16 h-16 flex items-center justify-center ${getRiskLevel(selectedAlert.sla_risk_score).color} border-${getRiskLevel(selectedAlert.sla_risk_score).color.split(' ')[1].replace('text', 'border')}`}>
+                    {Math.round(selectedAlert.sla_risk_score)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-900 mb-1">Risk Confidence Score</div>
+                    <div className="text-sm text-slate-600">
+                      {selectedAlert.intervention}
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-md p-4 space-y-2 shadow-sm">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deduplication State</div>
-                  <div className="text-sm flex items-center gap-2">
-                    <InfoIcon className="h-4 w-4 text-slate-500" />
-                    Active - Inside 15m dedupe window
+                {/* SHIPMENT INFORMATION */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Shipment Information</div>
+                  <div className="bg-slate-50/50 border border-slate-200 rounded-md p-4 grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Carrier</div>
+                      <div className="text-sm font-medium text-slate-900">Internal Fleet</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Origin</div>
+                      <div className="text-sm font-medium text-slate-900">JKT Hub ({selectedAlert.shipment_id.slice(0,4)})</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Destination</div>
+                      <div className="text-sm font-medium text-slate-900">Customer Location</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Est. Delivery</div>
+                      <div className="text-sm font-medium text-slate-900">{new Date(new Date(selectedAlert.created_at).getTime() + 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-md p-4 space-y-2 shadow-sm border-l-4 border-l-slate-900">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Provider Result</div>
-                  <div className="text-sm font-medium">200 OK</div>
-                  <div className="text-sm text-slate-600">Message delivered successfully via Fonnte API</div>
-                  <div className="text-xs font-mono text-slate-500 bg-slate-50 p-2 rounded mt-2 overflow-x-auto whitespace-nowrap">
-                    {`{"id":"msg_992x","status":"sent","cost":0.0015}`}
+                {/* DISPATCHED MESSAGE */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dispatched Message</div>
+                  <div className="bg-blue-50 border border-blue-100 rounded-md p-4 flex items-start gap-3">
+                    <div className="flex-1 text-sm font-medium text-slate-800">
+                      "URGENT: Shipment {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0,8)} is experiencing a high-risk delay. Action required for rerouting."
+                    </div>
+                    <MailIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+                  </div>
+                </div>
+
+                {/* DEDUPLICATION LOGIC */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deduplication Logic</div>
+                  <div className="text-sm flex items-start gap-2 text-slate-900 font-medium">
+                    <AlertTriangleIcon className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <span>Alert was triggered. 3 similar events within 1 hour window were suppressed to prevent notification fatigue.<br/><span className="text-xs text-slate-500 font-normal">Rule: HUB_DELAY_SUPPRESSION</span></span>
+                  </div>
+                </div>
+
+                {/* PROVIDER RESPONSE */}
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provider Response</div>
+                  <div className="bg-slate-800 text-slate-300 font-mono text-xs rounded-md p-4 whitespace-pre overflow-x-auto">
+{`{
+  "provider": "Fonnte API",
+  "status": 200,
+  "message_id": "msg-${selectedAlert.shipment_id.slice(0, 6)}",
+  "timestamp": "${new Date(selectedAlert.created_at).getTime()}",
+  "event": "delivered"
+}`}
                   </div>
                 </div>
               </div>
 
               <div className="p-5 bg-white border-t border-slate-200 rounded-b-lg flex gap-3">
-                <Button variant="outline" className="flex-1 bg-white" onClick={handleResend}>Resend</Button>
-                <Button className="flex-1 bg-black text-white hover:bg-slate-800" onClick={handleAcknowledge}>Acknowledge</Button>
+                <Button variant="outline" className="flex-1 bg-white" onClick={handleAcknowledge}>Acknowledge</Button>
+                <Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700 hover:text-white" onClick={() => router.push('/optimize')}>Optimize Route</Button>
               </div>
             </CardContent>
           </Card>

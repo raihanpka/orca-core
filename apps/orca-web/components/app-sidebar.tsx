@@ -38,8 +38,13 @@ const data = {
   },
   navMain: [
     {
-      title: "Operations (Home)",
+      title: "Analytics (Home)",
       url: "/",
+      icon: <ChartBarIcon />,
+    },
+    {
+      title: "Operations",
+      url: "/operations",
       icon: <LayoutDashboardIcon />,
     },
     {
@@ -48,14 +53,9 @@ const data = {
       icon: <PlusCircleIcon />,
     },
     {
-      title: "Optimizer",
+      title: "Route Optimizer",
       url: "/optimize",
       icon: <WaypointsIcon />,
-    },
-    {
-      title: "Analytics",
-      url: "/analytics",
-      icon: <ChartBarIcon />,
     },
     {
       title: "Alerts",
@@ -85,14 +85,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <Link href="/" className="contents">
               <SidebarMenuButton
-                className="data-[slot=sidebar-menu-button]:p-1.5!"
+                className="data-[slot=sidebar-menu-button]:p-2! h-12"
                 render={<div />}
               >
-                <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">ORCA Engine</span>
+                <img src="/logo.svg" alt="Orca Logo" className="size-7" />
+                <span className="text-xl font-bold tracking-tight">ORCA</span>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
+          <div className="px-2 pb-2 mt-1 text-[10px] leading-tight text-slate-500 font-medium">
+            AI-Powered Carbon-Aware Logistics Intelligence for Resilient and Sustainable Delivery Networks
+          </div>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>

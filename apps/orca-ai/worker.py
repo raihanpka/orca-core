@@ -1,7 +1,14 @@
 import asyncio
 from typing import Any
-from arq import Worker
+import sys
+import os
+
+# Add the parent directory to Python path so we can import from scripts
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
+from arq import Worker, cron
 from arq.connections import RedisSettings
+from scripts.ingest.seed_db import seed_data
 
 # A sample background task
 async def process_shipment_delay(ctx: dict[str, Any], shipment_id: str) -> None:
@@ -9,24 +16,31 @@ async def process_shipment_delay(ctx: dict[str, Any], shipment_id: str) -> None:
     await asyncio.sleep(2) # Simulate ML inference time
     print(f"Background task finished: shipment {shipment_id}")
 
+# Cron job for generating continuous realistic data
+async def continuous_data_generation(ctx: dict[str, Any]) -> None:
+    print("Cron Job Triggered: Generating new shipment data...")
+    try:
+        # Generate 2 random shipments every time this runs
+        await seed_data(seed_count=2)
+        print("Cron Job: Successfully generated new shipments.")
+    except Exception as e:
+        print(f"Cron Job Error: Failed to seed data - {e}")
+
 async def startup(ctx: dict[str, Any]) -> None:
     print("ARQ Worker starting up...")
-    # Initialize DB connections or ML models here
 
 async def shutdown(ctx: dict[str, Any]) -> None:
     print("ARQ Worker shutting down...")
-    # Clean up connections here
 
 class WorkerSettings:
-    # Use standard redis URL, typically mapped in docker-compose
-    # Ensure this matches your redis service name/port
     redis_settings = RedisSettings(host='redis', port=6380)
     functions = [process_shipment_delay]
+    cron_jobs = [
+        cron(continuous_data_generation, minute=set(range(0, 60, 15))) # Run every 15 minutes
+    ]
     on_startup = startup
     on_shutdown = shutdown
 
 if __name__ == "__main__":
-    # Usually you run this via the CLI: `arq worker.WorkerSettings`
-    import sys
     print("Please run this worker using: arq worker.WorkerSettings")
     sys.exit(1)
