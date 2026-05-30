@@ -15,13 +15,13 @@ export function PredictionMetrics({
   error?: Error
 }) {
   return (
-    <Card className="md:col-span-2 shadow-sm border-slate-200 rounded-sm">
+    <Card className="md:col-span-2 shadow-sm border-slate-200 rounded-sm flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <BrainCircuitIcon className="h-4 w-4 text-slate-500" /> Orca AI Prediction
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
         {loading ? (
           <>
             <Skeleton className="h-20" />
@@ -48,7 +48,7 @@ export function PredictionMetrics({
             />
             <MetricCard
               label="Model Version"
-              value={prediction.model_version ?? "-"}
+              value={prediction.model_version === "lgbm-v2" ? "LightGBM" : (prediction.model_version ?? "-")}
               sub="ORCA Delay Predictor"
               icon={InfoIcon}
               accent="bg-slate-100"

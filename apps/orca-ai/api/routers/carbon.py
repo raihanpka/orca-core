@@ -28,6 +28,7 @@ async def carbon_analytics(
                 "vs_baseline_pct": 0.0,
                 "by_day": [],
                 "by_vehicle_type": [],
+                "recent_routes": [],
                 "glec_version": "3.0",
             }
         )
@@ -53,6 +54,27 @@ async def carbon_analytics(
         date_from,
         date_to,
     )
+    recent_routes = await pool.fetch(
+        """
+        SELECT
+            s.id AS shipment_id,
+            s.external_id,
+            s.origin_hub_id AS origin,
+            s.destination_zone AS destination,
+            s.vehicle_type,
+            s.load_weight_kg,
+            c.co2_kg,
+            s.distance_km,
+            c.calculated_at
+        FROM shipments s
+        JOIN carbon_records c ON c.shipment_id = s.id
+        WHERE c.calculated_at::date BETWEEN $1 AND $2
+        ORDER BY c.calculated_at DESC
+        LIMIT 50
+        """,
+        date_from,
+        date_to,
+    )
     total = sum(float(row["co2_kg"] or 0) for row in by_day)
     count = sum(int(row["shipment_count"] or 0) for row in by_day)
     avg = total / count if count else 0.0
@@ -70,6 +92,20 @@ async def carbon_analytics(
             "by_vehicle_type": [
                 {"vehicle_type": row["vehicle_type"], "co2_kg": float(row["co2_kg"]), "shipment_count": row["shipment_count"]}
                 for row in by_vehicle
+            ],
+            "recent_routes": [
+                {
+                    "shipment_id": str(row["shipment_id"]),
+                    "external_id": row["external_id"] or "",
+                    "origin": row["origin"],
+                    "destination": row["destination"],
+                    "vehicle_type": row["vehicle_type"],
+                    "co2_kg": float(row["co2_kg"]),
+                    "distance_km": float(row["distance_km"]),
+                    "load_weight_kg": float(row["load_weight_kg"] or 0),
+                    "calculated_at": row["calculated_at"].isoformat() if row["calculated_at"] else None
+                }
+                for row in recent_routes
             ],
             "glec_version": "3.0",
         }

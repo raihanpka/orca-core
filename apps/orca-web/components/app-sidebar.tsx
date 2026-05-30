@@ -85,15 +85,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <Link href="/" className="contents">
               <SidebarMenuButton
-                className="data-[slot=sidebar-menu-button]:p-2! h-12"
+                className="data-[slot=sidebar-menu-button]:p-2! h-14"
                 render={<div />}
               >
-                <img src="/logo.svg" alt="Orca Logo" className="size-7" />
-                <span className="text-xl font-bold tracking-tight">ORCA</span>
+                <img src="/orca-brand.svg" alt="Orca Logo" className="h-12 w-auto" />
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
-          <div className="px-2 pb-2 mt-1 text-[10px] leading-tight text-slate-500 font-medium">
+          <div className="px-2 pb-2 mt-1 text-[12px] leading-tight text-slate-500 font-medium">
             AI-Powered Carbon-Aware Logistics Intelligence for Resilient and Sustainable Delivery Networks
           </div>
         </SidebarMenu>

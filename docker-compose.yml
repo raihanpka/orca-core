@@ -9,7 +9,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/init-db:/docker-entrypoint-initdb.d
     ports:
-      - "5439:5432"
+      - "5444:5432"
     networks: [orca-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
@@ -21,7 +21,7 @@ services:
     image: redis:7-alpine
     command: redis-server --port 6380
     ports:
-      - "6380:6380"
+      - "6388:6380"
     networks: [orca-net]
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "6380", "ping"]

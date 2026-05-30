@@ -167,7 +167,7 @@ export default function AlertsPage() {
               <div>
                 <CardTitle className="text-lg">Alert Logs & Details</CardTitle>
                 <div className="text-base text-slate-900 mt-1 font-mono">
-                  {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)} &gt; Routing Exception
+                  {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)}
                 </div>
               </div>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedAlert(null)}>
