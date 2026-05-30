@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # Docker internal hostnames (used when running inside a container)
-    database_url: str = "postgresql://orca:orca_pass@postgres:5432/orca_db"
-    redis_url: str = "redis://redis:6380"
+    database_url: str = "postgresql://orca:orca_pass@postgres:5444/orca_db"
+    redis_url: str = "redis://redis:6381"
 
 
     prediction_cache_ttl_seconds: int = 900

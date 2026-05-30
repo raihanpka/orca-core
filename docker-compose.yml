@@ -2,29 +2,30 @@ services:
   postgres:
     image: timescale/timescaledb:latest-pg15
     environment:
-      POSTGRES_USER: orca
-      POSTGRES_PASSWORD: orca_pass
-      POSTGRES_DB: orca_db
+      POSTGRES_USER: ${POSTGRES_USER:-orca}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orca_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-orca_db}
+      PGPORT: ${POSTGRES_PORT:-5444}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/init-db:/docker-entrypoint-initdb.d
     ports:
-      - "5444:5444"
+      - "${POSTGRES_PORT:-5444}:${POSTGRES_PORT:-5444}"
     networks: [orca-net]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orca} -d ${POSTGRES_DB:-orca_db} -p ${POSTGRES_PORT:-5444}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    command: redis-server --port 6380
+    command: redis-server --port ${REDIS_PORT:-6381}
     ports:
-      - "6380:6380"
+      - "${REDIS_PORT:-6381}:${REDIS_PORT:-6381}"
     networks: [orca-net]
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-6381}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,8 +50,8 @@ services:
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: ${APP_PORT:-8010}
       DEBUG: ${DEBUG:-true}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://orca:orca_pass@postgres:5444/orca_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6380}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-orca}:${POSTGRES_PASSWORD:-orca_pass}@postgres:${POSTGRES_PORT:-5444}/${POSTGRES_DB:-orca_db}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:${REDIS_PORT:-6381}}
       PREDICTION_CACHE_TTL_SECONDS: ${PREDICTION_CACHE_TTL_SECONDS:-900}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-orca-internal-local-token}
       PUBLIC_API_TOKEN: ${PUBLIC_API_TOKEN:-orca-public-local-token}
@@ -92,8 +93,8 @@ services:
       - "./data:/data"
       - "./mlruns:/mlruns"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://orca:orca_pass@postgres:5444/orca_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6380}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-orca}:${POSTGRES_PASSWORD:-orca_pass}@postgres:${POSTGRES_PORT:-5444}/${POSTGRES_DB:-orca_db}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:${REDIS_PORT:-6381}}
       MODEL_PATH: ${MODEL_PATH:-/data/processed/model.lgbm}
       OSMNX_GRAPH_PATH: ${OSMNX_GRAPH_PATH:-/data/processed/osmnx/jabodetabek.graphml}
     depends_on:
@@ -123,8 +124,8 @@ services:
     profiles: ["setup"]
     command: uv run python scripts/ingest/seed_db.py
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://orca:orca_pass@postgres:5444/orca_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6380}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-orca}:${POSTGRES_PASSWORD:-orca_pass}@postgres:${POSTGRES_PORT:-5444}/${POSTGRES_DB:-orca_db}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:${REDIS_PORT:-6381}}
     depends_on:
       postgres: {condition: service_healthy}
     networks: [orca-net]

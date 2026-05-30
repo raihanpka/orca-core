@@ -34,5 +34,5 @@ USER root
 RUN chmod +x /app/entrypoint.sh
 USER orca
 
-EXPOSE 8000
+EXPOSE 8010
 ENTRYPOINT ["./entrypoint.sh"]

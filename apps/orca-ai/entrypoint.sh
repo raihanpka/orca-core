@@ -13,7 +13,7 @@ python scripts/ingest/seed_db.py
 
 if [ $# -eq 0 ]; then
     echo "Starting ORCA AI Server..."
-    exec uvicorn main:app --host 0.0.0.0 --port 8000
+    exec uvicorn main:app --host 0.0.0.0 --port ${APP_PORT:-8010}
 else
     echo "Running command: $@"
     exec "$@"
