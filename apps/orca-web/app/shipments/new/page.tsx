@@ -3,26 +3,42 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeftIcon, MapPinIcon, TruckIcon, CalendarIcon, PackageIcon, AlertCircleIcon, Loader2Icon, CheckCircle2Icon } from "lucide-react"
+import useSWR from "swr"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { API_BASE, API_TOKEN } from "@/lib/api"
+import { API_BASE, API_TOKEN, apiFetch } from "@/lib/api"
 
 function toTitleCase(str: string) {
   return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
+
+const FALLBACK_HUBS = [
+  { id: "hub_cakung",        name: "Hub Cakung (East Jakarta)" },
+  { id: "hub_kebon_jeruk",   name: "Hub Kebon Jeruk (West Jakarta)" },
+  { id: "hub_pasar_minggu",  name: "Hub Pasar Minggu (South Jakarta)" },
+  { id: "hub_kelapa_gading", name: "Hub Kelapa Gading (North Jakarta)" },
+  { id: "hub_cikarang",      name: "Hub Cikarang (Bekasi Regency)" },
+  { id: "hub_tangerang",     name: "Hub Tangerang (Airport Cargo)" },
+  { id: "hub_bekasi",        name: "Hub Bekasi (MM2100)" },
+  { id: "hub_bogor",         name: "Hub Bogor (Sentul)" },
+  { id: "hub_depok",         name: "Hub Depok (Cimanggis)" },
+]
 
 export default function NewShipmentPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
+  const { data: hubsResponse } = useSWR<{ hubs: Array<{ id: string; name: string }> }>("/hubs/", apiFetch)
+  const availableHubs = hubsResponse?.hubs ?? FALLBACK_HUBS
+
   const [formData, setFormData] = useState({
-    origin_hub_id: "hub_jakarta_selatan",
+    origin_hub_id: "hub_cakung",
     destination_zone: "",
     customer_lat: "-6.5960",
     customer_lng: "106.7970",
@@ -71,20 +87,26 @@ export default function NewShipmentPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${API_TOKEN}`
+          "Authorization": `Bearer ${API_TOKEN}`,
+          "X-API-Token": API_TOKEN,
         },
         body: JSON.stringify(payload)
       })
 
+      const body = await res.json()
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.detail || "Failed to create shipment")
+        throw new Error(body?.error ?? body?.detail ?? "Failed to create shipment")
+      }
+
+      const shipmentId = body?.data?.shipment_id ?? body?.shipment_id
+      if (!shipmentId) {
+        throw new Error("Shipment created but no ID returned")
       }
 
       setSuccess(true)
       setTimeout(() => {
-        router.push("/")
-      }, 2000)
+        router.push(`/shipments/${shipmentId}`)
+      }, 1200)
 
     } catch (err: any) {
       setError(err.message)
@@ -117,7 +139,7 @@ export default function NewShipmentPage() {
       {success && (
         <div className="p-4 bg-green-50 text-green-700 border border-green-200 rounded-md flex items-center gap-2">
           <CheckCircle2Icon className="w-5 h-5" />
-          <span>Shipment successfully created! Model is generating predictions. Redirecting...</span>
+          <span>Shipment created! Opening AI risk analysis...</span>
         </div>
       )}
 
@@ -135,14 +157,13 @@ export default function NewShipmentPage() {
                 <Select value={formData.origin_hub_id} onValueChange={(v) => v && setFormData({...formData, origin_hub_id: v})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Origin">
-                      {formData.origin_hub_id ? toTitleCase(formData.origin_hub_id) : "Select Origin"}
+                      {availableHubs.find(h => h.id === formData.origin_hub_id)?.name ?? toTitleCase(formData.origin_hub_id)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hub_jakarta_selatan">Hub Jakarta Selatan</SelectItem>
-                    <SelectItem value="hub_jakarta_utara">Hub Jakarta Utara</SelectItem>
-                    <SelectItem value="hub_bogor">Hub Bogor</SelectItem>
-                    <SelectItem value="hub_depok">Hub Depok</SelectItem>
+                    {availableHubs.map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
