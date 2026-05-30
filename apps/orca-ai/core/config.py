@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_env: str = "development"
-    app_port: int = 8000
+    app_port: int = 8010
     debug: bool = True
 
     # Docker internal hostnames (used when running inside a container)
