@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis, Cell } from "recharts"
+import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis, ZAxis, Cell } from "recharts"
 import useSWR from "swr"
 
 import { jakartaRoutePoints, type Point } from "@/lib/mock-data"
@@ -382,6 +382,7 @@ export default function OptimizePage() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis type="number" dataKey="co2" name="CO2 Emissions (kg)" tickLine={false} axisLine={false} tickMargin={10} tick={{fill: '#64748b', fontSize: 12}} domain={['auto', 'auto']} label={{ value: 'CO2 Emissions (kg)', position: 'insideBottom', offset: -15, fill: '#64748b', fontSize: 12 }} />
                     <YAxis type="number" dataKey="eta" name="ETA (mins)" tickLine={false} axisLine={false} tickMargin={10} tick={{fill: '#64748b', fontSize: 12}} domain={['auto', 'auto']} label={{ value: 'ETA (mins)', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 12 }} />
+                    <ZAxis type="number" range={[900, 900]} />
                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent indicator="line" labelFormatter={(label, payload) => payload?.[0]?.payload?.label} />} />
                     <Scatter data={chartData} fill="#005A8C" line={{ stroke: '#94a3b8', strokeWidth: 1 }}>
                       {chartData.map((entry, index) => {
@@ -444,7 +445,7 @@ export default function OptimizePage() {
                             <TableCell className="text-center text-sm font-medium text-slate-700">{sol.travel_time_min}</TableCell>
                             <TableCell className="text-center text-sm font-medium text-slate-700">{(sol.travel_time_min * 35 / 60 / 1.25).toFixed(1)}</TableCell>
                             <TableCell className="text-center text-sm font-medium text-slate-700">Rp {formatNumber(sol.fuel_cost_idr, 0)}</TableCell>
-                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.co2_kg.toFixed(1)}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.co2_kg.toFixed(3)}</TableCell>
                             <TableCell className="text-center">
                               <span className={`inline-flex items-center justify-center px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${sol.sla_risk_score >= 70 ? 'bg-[#fee2e2] text-[#991b1b]' : 'bg-[#e2e8f0] text-[#475569]'}`}>
                                 {sol.sla_risk_score >= 70 ? 'High' : 'Low'}
@@ -473,7 +474,7 @@ export default function OptimizePage() {
                                     </div>
                                     <div className="flex flex-col gap-1 text-sm pb-3">
                                       <span className="font-semibold text-slate-900">3. Carbon Emissions (GLEC)</span>
-                                      <span className="text-slate-600">Formula: <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">Distance × (1.0 + Load(Ton)) × Emission_Factor</code>. Resulting in {sol.co2_kg.toFixed(2)} kg.</span>
+                                      <span className="text-slate-600">Formula: <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">Distance × (1.0 + Load(Ton)) × Emission_Factor</code>. Resulting in {sol.co2_kg.toFixed(3)} kg.</span>
                                     </div>
                                   </div>
                                 </DialogContent>

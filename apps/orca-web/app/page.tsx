@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import useSWR from "swr"
 import { CartesianGrid, Bar, BarChart, XAxis, YAxis, PieChart, Pie, Cell, Label } from "recharts"
 
@@ -81,8 +82,8 @@ function CarbonFootprintTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 md:grid-cols-2">
-        <Metric title="Total CO2" value={`${formatNumber(data.total_co2_kg, 1)} kg`} helper={`GLEC ${data.glec_version}`} />
-        <Metric title="Average CO2 per Shipment" value={`${formatNumber(data.avg_co2_per_shipment_kg, 1)} kg`} helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." />
+        <Metric title="Total CO2" value={`${formatNumber(data.total_co2_kg, 3)} kg`} helper={`GLEC ${data.glec_version}`} />
+        <Metric title="Average CO2 per Shipment" value={`${formatNumber(data.avg_co2_per_shipment_kg, 3)} kg`} helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -151,7 +152,7 @@ function CarbonFootprintTab() {
                     return (
                       <div key={item.vehicle_type} className="space-y-1.5">
                         <div className="flex justify-between text-sm font-medium text-slate-700">
-                          <span className="capitalize">{toTitleCase(item.vehicle_type)}: {percent}% — {formatNumber(item.co2_kg, 1)} kg</span>
+                          <span className="capitalize">{toTitleCase(item.vehicle_type)}: {percent}% — {formatNumber(item.co2_kg, 3)} kg</span>
                         </div>
                         <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
                           <div 
@@ -188,7 +189,7 @@ function CarbonFootprintTab() {
               <TableRow key={item.vehicle_type} className="border-slate-200">
                 <TableCell className="font-medium text-slate-900 pl-6">{toTitleCase(item.vehicle_type)}</TableCell>
                 <TableCell>{formatNumber(item.shipment_count, 0)}</TableCell>
-                <TableCell className="pr-6">{formatNumber(item.co2_kg, 1)} kg</TableCell>
+                <TableCell className="pr-6">{formatNumber(item.co2_kg, 3)} kg</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -241,7 +242,7 @@ function CarbonFootprintTab() {
                       <TableCell className="text-slate-600">{route.destination}</TableCell>
                       <TableCell className="text-slate-600 capitalize">{toTitleCase(route.vehicle_type)}</TableCell>
                       <TableCell className="text-slate-600">{formatNumber(route.distance_km, 1)} km</TableCell>
-                      <TableCell className="font-semibold text-slate-900">{formatNumber(route.co2_kg, 2)} kg</TableCell>
+                      <TableCell className="font-semibold text-slate-900">{formatNumber(route.co2_kg, 3)} kg</TableCell>
                       <TableCell className="text-center">
                         <Link
                           href={`/shipments/${route.shipment_id}`}
