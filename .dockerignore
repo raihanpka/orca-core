@@ -43,3 +43,5 @@ mlruns/
 # OS
 .DS_Store
 Thumbs.db
+apps/orca-web/.next/
+apps/orca-web/node_modules/
