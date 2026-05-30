@@ -17,6 +17,7 @@ from db.queries import (
     get_active_shipments,
     get_hub_historical_rates,
     get_latest_prediction,
+    get_shipment,
     get_shipment_events,
 )
 from ml.features import FEATURE_COLUMNS, build_feature_vector
@@ -315,6 +316,42 @@ async def active_shipments(
             }
         )
     return ok({"shipments": shipments, "next_cursor": next_cursor, "total_at_risk": total_at_risk})
+
+
+@router.get("/{shipment_id}")
+async def get_shipment_detail(shipment_id: str, request: Request):
+    """Return core shipment fields joined with latest carbon record."""
+    row = await get_shipment(request.app.state.db_pool, shipment_id)
+    if row is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Shipment not found")
+    pool = request.app.state.db_pool
+    carbon = None
+    if pool:
+        carbon = await pool.fetchrow(
+            "SELECT co2_kg, route_distance_km, emission_factor, glec_version FROM carbon_records WHERE shipment_id = $1::uuid",
+            shipment_id,
+        )
+    return ok({
+        "id": str(row["id"]),
+        "external_id": row["external_id"],
+        "origin_hub_id": row["origin_hub_id"],
+        "destination_zone": row["destination_zone"],
+        "vehicle_type": row["vehicle_type"],
+        "load_weight_kg": float(row["load_weight_kg"] or 0),
+        "item_count": int(row["item_count"] or 0),
+        "distance_km": float(row["distance_km"] or 0),
+        "status": row["status"],
+        "sla_deadline": row["sla_deadline"],
+        "dispatched_at": row["dispatched_at"],
+        "created_at": row["created_at"],
+        "carbon": {
+            "co2_kg": float(carbon["co2_kg"]) if carbon else None,
+            "distance_km": float(carbon["route_distance_km"]) if carbon else None,
+            "emission_factor": float(carbon["emission_factor"]) if carbon else None,
+            "glec_version": carbon["glec_version"] if carbon else None,
+        },
+    })
 
 
 @router.get("/{shipment_id}/prediction")

@@ -1,13 +1,13 @@
 import json
 import uuid
 import hashlib
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 
 from api.schemas.common import ok
 from api.schemas.optimize import OptimizeRouteRequest
 from core.config import get_settings
+from db.queries import get_predictions_for_shipments
 from ml.route_optimizer import optimize_route
 
 router = APIRouter(prefix="/optimize", tags=["optimize"])
@@ -54,9 +54,13 @@ async def route(payload: OptimizeRouteRequest, request: Request):
             pass # Continue to fresh calculation if redis fails
 
     request_id = f"opt-{uuid.uuid4()}"
-    
-    # TomTom/Traffic multiplier skipped as per user request (prioritize free OpenMeteo)
-    traffic_multiplier = 1.25 
+    traffic_multiplier = 1.25
+
+    # Fetch LightGBM delay_probability for each stop from DB so the optimizer
+    # uses real model output for its SLA-risk objective instead of a proxy.
+    pool = request.app.state.db_pool
+    shipment_ids = [str(stop.shipment_id) for stop in payload.delivery_stops]
+    stop_delay_probs = await get_predictions_for_shipments(pool, shipment_ids)
 
     solutions, elapsed_ms, compliant = await optimize_route(
         payload.delivery_stops,
@@ -65,24 +69,9 @@ async def route(payload: OptimizeRouteRequest, request: Request):
         payload.origin_hub_id,
         payload.routing_engine,
         traffic_multiplier=traffic_multiplier,
+        stop_delay_probs=stop_delay_probs,
     )
-    
-    # Re-calculate travel time and risk with real traffic multiplier for the final Pareto set
-    for sol in solutions:
-        base_km = sol["travel_time_min"] * 35 / 60 / 1.25
-        sol["travel_time_min"] = max(1, int(base_km / 35 * 60 * traffic_multiplier))
-        
-        # Recalculate SLA Risk
-        latest_deadline = min(stop.sla_deadline for stop in payload.delivery_stops)
-        remaining_min = (latest_deadline.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).total_seconds() / 60
-        sla_risk = (
-            100.0
-            if sol["travel_time_min"] > remaining_min
-            else min(65.0, sol["travel_time_min"] / max(remaining_min, 1) * 50)
-        )
-        sol["sla_risk_score"] = round(sla_risk, 2)
 
-    pool = request.app.state.db_pool
     if pool is not None:
         await pool.execute(
             """
