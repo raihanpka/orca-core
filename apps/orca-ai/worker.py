@@ -9,6 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from arq import Worker, cron
 from arq.connections import RedisSettings
 from scripts.ingest.seed_db import seed_data
+from core.config import get_settings
 
 # A sample background task
 async def process_shipment_delay(ctx: dict[str, Any], shipment_id: str) -> None:
@@ -33,7 +34,7 @@ async def shutdown(ctx: dict[str, Any]) -> None:
     print("ARQ Worker shutting down...")
 
 class WorkerSettings:
-    redis_settings = RedisSettings(host='redis', port=6380)
+    redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     functions = [process_shipment_delay]
     cron_jobs = [
         cron(continuous_data_generation, minute=set(range(0, 60, 15))) # Run every 15 minutes

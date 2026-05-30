@@ -90,7 +90,7 @@ async def seed_data(seed_count: int = 30) -> None:
               vehicle_type, load_weight_kg, item_count, sla_deadline, dispatched_at, status, distance_km
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            ON CONFLICT (external_id) DO NOTHING
+            ON CONFLICT (id) DO NOTHING
             """,
             records
         )
