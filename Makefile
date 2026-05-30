@@ -32,7 +32,7 @@ dev-ai:
 	cd apps/orca-ai && $(UV) run uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 dev-web:
-	cd apps/orca-web && $(PNPM) dev -- -p 3001
+	cd apps/orca-web && $(PNPM) dev
 
 test: test-ai test-web
 
