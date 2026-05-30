@@ -8,7 +8,7 @@ Berikut adalah rincian arsitektur teknis sistem logistik yang telah dibangun (Or
 graph TD
     %% Frontend & Clients
     subgraph "Client Applications"
-        Web[("Orca Web Dashboard\n(Next.js / React)")]
+        Web[("ORCA Web Dashboard\n(Next.js / React)")]
         Mobile[("Driver / Hub App\n(React Native / Flutter)")]
     end
 
@@ -88,5 +88,5 @@ Berdasarkan benchmark industri dari implementasi AI dalam sektor logistik (*case
 
 Untuk memaksimalkan *Business Impact* dan menyelesaikan sisa validasi:
 1. **Peningkatan Fleet Utilization di Analytics:** Menambahkan matriks visual untuk melihat utilitas kapasitas kargo armada (Volume/Berat yang dibawa vs Kapasitas Maksimal) ke Dashboard Utama (Halaman `/analytics`).
-2. **Dashboard Executive Summary Khusus:** Membuat satu layer tab baru bertajuk "Executive Impact" di UI Orca Web yang otomatis mengkonversi jarak tempuh (km) dan bahan bakar (liter) yang dihemat ke dalam kurs **Rupiah** (*Real-time Savings*).
+2. **Dashboard Executive Summary Khusus:** Membuat satu layer tab baru bertajuk "Executive Impact" di UI ORCA Web yang otomatis mengkonversi jarak tempuh (km) dan bahan bakar (liter) yang dihemat ke dalam kurs **Rupiah** (*Real-time Savings*).
 3. **Penerapan Sistem Queue Penuh (ARQ/Celery):** Memastikan proses *background task* seperti pengiriman notifikasi (SMS/WhatsApp) dan re-routing batch skala besar masuk ke *Message Broker* (Redis) agar tidak memblokir respon *API Gateway*.

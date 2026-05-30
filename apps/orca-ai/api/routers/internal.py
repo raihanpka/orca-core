@@ -16,13 +16,22 @@ router = APIRouter(
 
 @router.post("/predict")
 async def predict_delay(payload: InternalPredictRequest, request: Request):
+    row = payload.model_dump()
+
+    # Weather enrichment via Open-Meteo if lat/lng provided and score is default
+    if row.get("weather_severity_score", 0.0) == 0.0 and row.get("lat") and row.get("lng"):
+        from services.weather import OpenMeteoClient
+        from core.config import get_settings
+        client = OpenMeteoClient(get_settings().open_meteo_api_url, request.app.state.redis)
+        row["weather_severity_score"] = await client.weather_severity(row["lat"], row["lng"])
+
     predictor = DelayPredictor(
         request.app.state.delay_model,
         request.app.state.label_encoder,
         request.app.state.model_version,
     )
-    result = predictor.predict(payload.model_dump())
-    risk_score, _ = compute_sla_risk(result["delay_probability"], payload.remaining_hours_to_sla)
+    result = predictor.predict(row)
+    risk_score, _ = compute_sla_risk(result["delay_probability"], payload.remaining_hours_to_sla, distance_km=payload.distance_km)
     response = {
         "shipment_id": payload.shipment_id,
         "delay_probability": result["delay_probability"],

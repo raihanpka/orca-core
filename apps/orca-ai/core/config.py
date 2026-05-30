@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 
 from pydantic import Field
@@ -9,18 +10,22 @@ class Settings(BaseSettings):
     app_port: int = 8000
     debug: bool = True
 
+    # Docker internal hostnames (used when running inside a container)
     database_url: str = "postgresql://orca:orca_pass@postgres:5432/orca_db"
     redis_url: str = "redis://redis:6380"
+
+
     prediction_cache_ttl_seconds: int = 900
     internal_api_token: str = "dev-internal-token"
     public_api_token: str = "dev-public-token"
     public_rate_limit_per_minute: int = 120
 
-    mlflow_tracking_uri: str = "http://mlflow:5001"
+    mlflow_tracking_uri: str = ""  # empty = MLflow disabled, use local model files
     mlflow_model_name: str = "delay-predictor"
     mlflow_model_stage: str = "Production"
 
     open_meteo_api_url: str = "https://api.open-meteo.com/v1/forecast"
+    stadia_api_key: str = ""
     tomtom_api_key: str = ""
     fonnte_api_key: str = ""
     fonnte_api_url: str = "https://api.fonnte.com/send"
@@ -30,10 +35,9 @@ class Settings(BaseSettings):
     osmnx_enable_download: bool = False
 
     alert_risk_threshold: float = 70.0
-    # Amplifier for SLA risk formula. Calibrated models on imbalanced datasets
-    # produce probabilities capped around 0.20; amplifier=4 maps them to the
-    # full [0, 100] score range. For uncalibrated or balanced models, use 1.0.
-    sla_risk_amplifier: float = Field(default=4.0, ge=1.0, le=10.0)
+    # Amplifier for SLA risk formula. v2 uses CalibratedClassifierCV + slack dampening;
+    # keep at 1.0 unless re-tuning on production data. Legacy imbalanced models used 4.0.
+    sla_risk_amplifier: float = Field(default=1.0, ge=1.0, le=10.0)
     demo_mode: bool = False
     nsga2_population_size: int = Field(default=100, ge=10)
     nsga2_generations: int = Field(default=200, ge=10)

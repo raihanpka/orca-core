@@ -1,28 +1,28 @@
 {
   "model_format": "lightgbm-native",
-  "model_version": "lgbm-v1",
+  "model_version": "LightGBM",
   "calibration_method": "sigmoid",
   "n_folds": 5,
   "calibrators": [
     {
-      "a": -1.886053228567989,
-      "b": 2.882072305924213
+      "a": -3.51618107889253,
+      "b": 3.676599373438611
     },
     {
-      "a": -2.6530716113445783,
-      "b": 3.5097157841758504
+      "a": -3.2059309245420695,
+      "b": 3.5343729520373235
     },
     {
-      "a": -1.8941867906565468,
-      "b": 3.1010514982937414
+      "a": -3.5238627755110685,
+      "b": 3.675513694907957
     },
     {
-      "a": -4.808106816271362,
-      "b": 4.8650038697192555
+      "a": -3.3428252922421624,
+      "b": 3.6056588332923574
     },
     {
-      "a": -3.76581785456271,
-      "b": 4.545698949306778
+      "a": -3.357102098109349,
+      "b": 3.613635110993095
     }
   ],
   "feature_columns": [
@@ -38,11 +38,13 @@
     "historical_driver_rate",
     "item_count",
     "product_weight_g",
-    "freight_value",
-    "freight_to_price_ratio",
-    "payment_installments",
-    "same_state_delivery"
+    "is_lebaran_window",
+    "is_ramadan",
+    "is_harbolnas_buildup",
+    "indonesia_peak_season"
   ],
-  "feature_version": "v1",
-  "pkl_source": "model.pkl"
+  "feature_version": "v2",
+  "dataset_version": "olist-jabodetabek-v2",
+  "pkl_source": "model.pkl",
+  "note": "Single booster from fold 0; all fold calibrators saved for averaged predict_proba. For best consistency, prefer model.pkl (full sklearn ensemble)."
 }

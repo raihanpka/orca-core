@@ -13,12 +13,15 @@ class InternalPredictRequest(BaseModel):
     historical_driver_rate: float = Field(default=1.0, ge=0, le=1)
     item_count: int = Field(default=1, ge=1)
     product_weight_g: float = Field(default=1000.0, ge=0)
-    # v2 features — optional with sensible defaults for backwards compatibility.
-    freight_value: float = Field(default=15.0, ge=0)
-    price: float = Field(default=100.0, ge=0)
-    payment_installments: int = Field(default=1, ge=1)
-    same_state_delivery: int = Field(default=0, ge=0, le=1)
+    # v2: Indonesia calendar features (auto-computed if omitted)
+    is_lebaran_window: int = Field(default=0, ge=0, le=1)
+    is_ramadan: int = Field(default=0, ge=0, le=1)
+    is_harbolnas_buildup: int = Field(default=0, ge=0, le=1)
+    indonesia_peak_season: int = Field(default=0, ge=0, le=1)
     remaining_hours_to_sla: float
+    # Optional lat/lng for weather enrichment via Open-Meteo
+    lat: float | None = None
+    lng: float | None = None
 
 
 class PredictionResponse(BaseModel):

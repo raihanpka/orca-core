@@ -163,7 +163,7 @@ export default function OptimizePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Route Optimizer</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-base text-slate-900 mt-1">
             Configure parameters to generate optimal global delivery routes.
           </p>
         </div>
@@ -190,7 +190,7 @@ export default function OptimizePage() {
           <CardContent className="space-y-8">
             {atRiskShipments.length > 0 && (
               <div className="flex flex-col gap-1.5 p-3 bg-red-50/50 border border-red-100 rounded-md">
-                <Label className="text-xs font-semibold text-red-900">Load At-Risk Shipment (Seamless Flow)</Label>
+                <Label className="text-xs font-semibold text-red-900">Load At-Risk Shipment</Label>
                 <Select value={selectedShipmentId} onValueChange={(val: string | null) => {
                   setSelectedShipmentId(val || "")
                   const shipment = atRiskShipments.find(s => s.id === val)
@@ -225,7 +225,7 @@ export default function OptimizePage() {
               <div className="relative flex items-start gap-4">
                 <div className="h-4 w-4 mt-2.5 rounded-full bg-[#005A8C] border-[3px] border-white shadow-sm ring-1 ring-slate-200 z-10" />
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs text-slate-500">Origin</Label>
+                  <Label className="text-sm text-slate-900">Origin</Label>
                   <Select value={originHubId} onValueChange={(val) => {
                     setResult(null)
                     setOriginHubId(val || "hub_jakarta_selatan")
@@ -254,7 +254,7 @@ export default function OptimizePage() {
                   <div className="flex-1 space-y-1 overflow-hidden">
                     <div className="flex justify-between items-center">
                       <Label className="text-sm font-semibold text-slate-800">
-                        Stop {index + 1} {matchedHub ? <span className="font-medium text-slate-500 ml-1">({toTitleCase(matchedHub.name.replace(/^Hub /i, ''))})</span> : null}
+                        Stop {index + 1} {matchedHub ? <span className="font-medium text-slate-500 ml-1">{toTitleCase(matchedHub.name.replace(/^Hub /i, ''))}</span> : null}
                       </Label>
                       {waypoints.length > 1 && (
                         <button onClick={() => handleRemoveWaypoint(wp.id)} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -278,7 +278,7 @@ export default function OptimizePage() {
                           {availableHubs.map(h => <SelectItem key={h.id} value={h.id}>{toTitleCase(h.name.replace(/^Hub /i, ''))}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <div className="grid grid-cols-[1fr_1fr_4rem] sm:grid-cols-[1fr_1fr_5rem] gap-2">
+                      <div className="grid grid-cols-[1fr_1fr_5rem] sm:grid-cols-[1fr_1fr_7rem] gap-2">
                         <Input type="number" step="0.001" value={wp.lat} onChange={e => {
                           const v = parseFloat(e.target.value) || 0
                           handleUpdateWaypoint(wp.id, 'lat', v)
@@ -394,7 +394,7 @@ export default function OptimizePage() {
                   </ScatterChart>
                 </ChartContainer>
               ) : (
-                <div className="h-[220px] flex items-center justify-center text-slate-400 text-sm">Run optimization to view tradeoffs.</div>
+                <div className="h-[220px] flex items-center justify-center text-slate-800 text-base">Run optimization to view tradeoffs.</div>
               )}
             </CardContent>
           </Card>
@@ -436,7 +436,7 @@ export default function OptimizePage() {
                                   {isFastest || isLowest ? <span className="text-[#005A8C]">★</span> : null}
                                   Option {String.fromCharCode(65 + index)}
                                 </span>
-                                <span className="text-xs text-slate-500 font-medium">
+                                <span className="text-sm text-slate-900 font-medium">
                                   ({isFastest ? "Fastest" : isLowest ? "Lowest Emission" : "Balanced"})
                                 </span>
                               </div>
@@ -492,7 +492,7 @@ export default function OptimizePage() {
                       <span className="text-slate-400 text-xl">⚡</span>
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-1">No Routes Generated</h3>
-                    <p className="text-xs text-slate-500">Run optimization to see Pareto front route alternatives.</p>
+                    <p className="text-sm text-slate-900">Run optimization to see Pareto front route alternatives.</p>
                   </div>
                 </div>
               )}

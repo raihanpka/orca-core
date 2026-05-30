@@ -152,7 +152,7 @@ export default function AlertsPage() {
               )}
             </TableBody>
           </Table>
-          <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500 flex justify-between">
+          <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-sm text-slate-900 flex justify-between">
             <span>Showing {filteredAlerts.length} alerts</span>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="sm" className="h-6 w-6 p-0" disabled>‹</Button>
@@ -166,8 +166,8 @@ export default function AlertsPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-200 bg-white rounded-t-lg">
               <div>
                 <CardTitle className="text-lg">Alert Logs & Details</CardTitle>
-                <div className="text-sm text-slate-500 mt-1 font-mono">
-                  {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)} &gt; Routing Exception
+                <div className="text-base text-slate-900 mt-1 font-mono">
+                  {selectedAlert.external_id ?? selectedAlert.shipment_id.slice(0, 8)}
                 </div>
               </div>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedAlert(null)}>
@@ -229,7 +229,7 @@ export default function AlertsPage() {
                   <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deduplication Logic</div>
                   <div className="text-sm flex items-start gap-2 text-slate-900 font-medium">
                     <AlertTriangleIcon className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span>Alert was triggered. 3 similar events within 1 hour window were suppressed to prevent notification fatigue.<br/><span className="text-xs text-slate-500 font-normal">Rule: HUB_DELAY_SUPPRESSION</span></span>
+                    <span>Alert was triggered. 3 similar events within 1 hour window were suppressed to prevent notification fatigue.<br/><span className="text-sm text-slate-900 font-normal">Rule: HUB_DELAY_SUPPRESSION</span></span>
                   </div>
                 </div>
 
@@ -255,7 +255,7 @@ export default function AlertsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="h-full min-h-[400px] border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-slate-500 text-sm">
+          <div className="h-full min-h-[400px] border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-slate-900 text-base">
             Select an alert to view details
           </div>
         )}

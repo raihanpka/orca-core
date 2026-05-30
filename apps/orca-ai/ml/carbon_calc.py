@@ -1,3 +1,17 @@
+"""GLEC Framework v3.0 carbon emission calculation.
+
+Formula: CO2 (kg) = distance_km × load_weight_ton × emission_factor (kg CO2e / tonne-km)
+
+This is the standard GLEC transport activity formula:
+  transport_activity (tonne-km) = distance_km × load_weight_ton
+  CO2e = transport_activity × emission_intensity
+
+Emission factors are stored in the glec_emission_factors table (kg CO2e per tonne-km),
+seeded from GLEC Framework v3.0 Annex values. Vehicle class already accounts for
+the vehicle's own operating characteristics — no additive "vehicle weight" term needed.
+"""
+
+
 async def load_emission_factors(db_pool) -> dict[str, dict]:
     if db_pool is None:
         return {"van_diesel": {"emission_factor": 0.243, "glec_version": "3.0"}}

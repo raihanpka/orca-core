@@ -168,7 +168,7 @@ function CarbonFootprintTab() {
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-slate-500 text-center">No vehicle data available</div>
+              <div className="text-base text-slate-900 text-center">No vehicle data available</div>
             )}
           </CardContent>
         </Card>
@@ -243,43 +243,12 @@ function CarbonFootprintTab() {
                       <TableCell className="text-slate-600">{formatNumber(route.distance_km, 1)} km</TableCell>
                       <TableCell className="font-semibold text-slate-900">{formatNumber(route.co2_kg, 2)} kg</TableCell>
                       <TableCell className="text-center">
-                        <Dialog>
-                          <DialogTrigger className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors">
-                            <InfoIcon className="h-4 w-4 mr-1" /> Detail
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                              <DialogTitle>Carbon Explainability</DialogTitle>
-                              <DialogDescription>
-                                GLEC v3.0 Framework calculation for <strong>{route.external_id}</strong>
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Vehicle Type</span>
-                                <span className="text-sm font-medium capitalize">{toTitleCase(route.vehicle_type)}</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Distance Traveled</span>
-                                <span className="text-sm font-medium">{formatNumber(route.distance_km, 1)} km</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Load Weight</span>
-                                <span className="text-sm font-medium">{formatNumber(route.load_weight_kg, 1)} kg ({(route.load_weight_kg/1000).toFixed(3)} ton)</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Emission Factor</span>
-                                <span className="text-sm font-medium">{formatNumber(emissionFactor, 3)} kg CO2e/t-km</span>
-                              </div>
-                              <div className="bg-slate-50 p-3 rounded-md mt-2 border border-slate-200">
-                                <span className="text-xs text-slate-500 block mb-1">Calculation Formula (Distance × Weight × Factor)</span>
-                                <code className="text-sm text-slate-800 font-mono">
-                                  {formatNumber(route.distance_km, 1)} × {(route.load_weight_kg/1000).toFixed(3)} × {formatNumber(emissionFactor, 3)} = <strong className="text-green-600">{formatNumber(route.co2_kg, 2)} kg CO2e</strong>
-                                </code>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <Link
+                          href={`/shipments/${route.shipment_id}`}
+                          className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                        >
+                          <InfoIcon className="h-4 w-4 mr-1" /> Detail
+                        </Link>
                       </TableCell>
                     </TableRow>
                   )
@@ -287,7 +256,7 @@ function CarbonFootprintTab() {
               })()}
             </TableBody>
           </Table>
-          <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-sm text-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
             <span>
               {(() => {
                 const routes = data.recent_routes || [];
@@ -327,7 +296,7 @@ function Metric({title, value, helper}: {title: string; value: string; helper?: 
       </CardHeader>
       {helper && (
         <CardContent className="pb-4 px-5 pt-0">
-          <div className="text-xs text-slate-400">{helper}</div>
+          <div className="text-sm text-slate-800">{helper}</div>
         </CardContent>
       )}
     </Card>

@@ -214,6 +214,12 @@ def _load_from_mlflow() -> tuple[Any, str, str | None] | None:
 
         from core.config import get_settings
         settings = get_settings()
+
+        # Skip MLflow entirely if tracking URI is not configured
+        if not settings.mlflow_tracking_uri:
+            logger.debug("MLFLOW_TRACKING_URI is empty — skipping MLflow model load.")
+            return None
+
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
         model_uri = f"models:/{settings.mlflow_model_name}/{settings.mlflow_model_stage}"
         model = mlflow.sklearn.load_model(model_uri)

@@ -46,7 +46,7 @@ export function RouteMap({points, routeLine, className, focusPoint}: RouteMapPro
           zoom={9}
           zoomControl
           scrollWheelZoom
-          className="absolute inset-0 h-full w-full"
+          className="absolute inset-0 h-full w-full z-0"
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

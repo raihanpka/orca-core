@@ -87,7 +87,7 @@ export default function OperationsPage() {
     <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-slate-50/50 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Operations</h1>
-        <p className="text-sm text-slate-500">Manage active shipments, routing, and hub congestion.</p>
+        <p className="text-base text-slate-900">Manage active shipments, routing, and hub congestion.</p>
       </div>
 
       {showAlert && (
@@ -175,50 +175,19 @@ export default function OperationsPage() {
                             {isHighRisk ? 'High' : 'Low'}
                           </span>
                         ) : (
-                          <div className="flex items-center text-slate-400 text-xs gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin" /> Scoring...</div>
+                          <div className="flex items-center text-slate-800 text-sm gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin" /> Scoring...</div>
                         )}
                       </TableCell>
                       <TableCell className="font-semibold text-slate-900 pr-6">
                         {shipment.co2_kg ? `${formatNumber(shipment.co2_kg, 2)} kg` : '-'}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Dialog>
-                          <DialogTrigger className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors">
-                            <InfoIcon className="h-4 w-4 mr-1" /> Detail
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                              <DialogTitle>Carbon Explainability</DialogTitle>
-                              <DialogDescription>
-                                GLEC v3.0 Framework calculation for <strong>{shipment.external_id ?? shipment.id.slice(0, 8)}</strong>
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Vehicle Type</span>
-                                <span className="text-sm font-medium capitalize">{toTitleCase(shipment.vehicle_type)}</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Distance Traveled</span>
-                                <span className="text-sm font-medium">{formatNumber(shipment.distance_km || 0, 1)} km</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Load Weight</span>
-                                <span className="text-sm font-medium">{formatNumber(shipment.load_weight_kg || 0, 1)} kg ({((shipment.load_weight_kg || 0)/1000).toFixed(3)} ton)</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Emission Factor</span>
-                                <span className="text-sm font-medium">{formatNumber((shipment.co2_kg || 0) / ((shipment.distance_km || 1) * ((shipment.load_weight_kg || 1) / 1000) || 1), 3)} kg CO2e/t-km</span>
-                              </div>
-                              <div className="bg-slate-50 p-3 rounded-md mt-2 border border-slate-200">
-                                <span className="text-xs text-slate-500 block mb-1">Calculation Formula (Distance × Weight × Factor)</span>
-                                <code className="text-sm text-slate-800 font-mono">
-                                  {formatNumber(shipment.distance_km || 0, 1)} × {((shipment.load_weight_kg || 0)/1000).toFixed(3)} × {formatNumber((shipment.co2_kg || 0) / ((shipment.distance_km || 1) * ((shipment.load_weight_kg || 1) / 1000) || 1), 3)} = <strong className="text-green-600">{formatNumber(shipment.co2_kg || 0, 2)} kg CO2e</strong>
-                                </code>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <Link
+                          href={`/shipments/${shipment.id}`}
+                          className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                        >
+                          <InfoIcon className="h-4 w-4 mr-1" /> Detail
+                        </Link>
                       </TableCell>
                     </TableRow>
                   )
@@ -232,7 +201,7 @@ export default function OperationsPage() {
                 )}
               </TableBody>
             </Table>
-            <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-sm text-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
               <span>
                 Showing {filteredRows.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(safePage * ITEMS_PER_PAGE, filteredRows.length)} of {filteredRows.length} entries
               </span>
@@ -321,7 +290,7 @@ function Metric({title, value, helper}: {title: string; value: string; helper?: 
       </CardHeader>
       {helper && (
         <CardContent className="pb-4 px-5 pt-0">
-          <div className="text-xs text-slate-400">{helper}</div>
+          <div className="text-sm text-slate-800">{helper}</div>
         </CardContent>
       )}
     </Card>

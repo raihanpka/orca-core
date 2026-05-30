@@ -1,29 +1,60 @@
-import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client"
 
-export default async function ShipmentDetailPage(props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
+import { use } from "react"
+import useSWR from "swr"
+import { CarbonFootprintCard } from "@/components/shipments/carbon-footprint-card"
+import { InterventionActions } from "@/components/shipments/intervention-actions"
+import { PredictionMetrics } from "@/components/shipments/prediction-metrics"
+import { ShapContributionsCard } from "@/components/shipments/shap-contributions"
+import { ShipmentDetailHeader } from "@/components/shipments/shipment-detail-header"
+import { ShipmentProfileCard } from "@/components/shipments/shipment-profile-card"
+import { SlaRiskGauge } from "@/components/shipments/sla-risk-gauge"
+import { apiFetch, type PredictionDetail, type ShipmentDetail } from "@/lib/api"
+
+export default function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+
+  const { data: shipment, isLoading: loadingShipment } = useSWR<ShipmentDetail>(
+    `/shipments/${id}`,
+    apiFetch,
+    { refreshInterval: 30000 },
+  )
+
+  const {
+    data: prediction,
+    isLoading: loadingPrediction,
+    error: predictionError,
+  } = useSWR<PredictionDetail>(`/shipments/${id}/prediction`, apiFetch, { refreshInterval: 30000 })
+
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-slate-50/50 min-h-screen">
-      <div>
-        <Link href="/" className="inline-flex items-center text-sm text-[#005A8C] hover:underline mb-4 font-medium">
-          <ArrowLeftIcon className="mr-1.5 h-4 w-4" /> Back to Operations
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Shipment Details</h1>
-        <p className="text-sm text-slate-500 mt-1">Detailed routing and risk analysis for ID: {params.id}</p>
+    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-transparent min-h-screen">
+      <ShipmentDetailHeader id={id} shipment={shipment} loading={loadingShipment} />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SlaRiskGauge
+          score={prediction?.sla_risk_score}
+          loading={loadingPrediction}
+          error={predictionError}
+        />
+        <PredictionMetrics
+          prediction={prediction}
+          loading={loadingPrediction}
+          error={predictionError}
+        />
       </div>
 
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader>
-          <CardTitle>Shipment Profile</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-200 rounded-md bg-slate-50 text-slate-400">
-            <p>Detailed telemetry and route progression will appear here.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ShipmentProfileCard shipment={shipment} loading={loadingShipment} />
+        <CarbonFootprintCard carbon={shipment?.carbon} loading={loadingShipment} />
+      </div>
+
+      <ShapContributionsCard
+        contributions={prediction?.shap_contributions}
+        modelVersion={prediction?.model_version}
+        loading={loadingPrediction}
+      />
+
+      <InterventionActions options={prediction?.intervention_options} />
     </div>
-  );
+  )
 }

@@ -1,7 +1,10 @@
 """Delay prediction model training pipeline.
 
-Trains LightGBM with Optuna HPO, wraps with CalibratedClassifierCV, and registers
-the model to MLflow under the 'delay-predictor' name at the Staging stage.
+Trains LightGBM with Optuna HPO, wraps with CalibratedClassifierCV, and saves
+the model to data/processed/model.pkl.
+
+MLflow logging is optional — if MLFLOW_TRACKING_URI is unreachable, training
+proceeds without it and the model is saved locally.
 
 Usage (from repo root):
     make train
@@ -17,14 +20,9 @@ import sys
 import warnings
 from pathlib import Path
 
-# Silence the noisy "X does not have valid feature names" warning that fires for
-# every CV fold during Optuna and CalibratedClassifierCV. Benign — LightGBM
-# remembers feature names from initial fit but receives numpy arrays during CV.
 warnings.filterwarnings("ignore", message="X does not have valid feature names")
 
 import matplotlib
-import mlflow
-import mlflow.sklearn
 import numpy as np
 import optuna
 import pandas as pd
@@ -47,8 +45,6 @@ logger = logging.getLogger(__name__)
 PROCESSED = ROOT / "data" / "processed"
 EXPERIMENT_NAME = "orca-delay-prediction"
 MODEL_NAME = "delay-predictor"
-# Use N_TRIALS=20 for fast iteration on new features, 50 for final.
-# Override via env: N_TRIALS=20 make train
 N_TRIALS = int(os.getenv("N_TRIALS", "50"))
 CV_FOLDS = 5
 RANDOM_SEED = 42
@@ -71,10 +67,11 @@ def load_data() -> tuple[np.ndarray, np.ndarray, object]:
             encoder = pickle.load(fh)
 
     pos_rate = float(y.mean())
-    logger.info("Loaded train set: rows=%d positive_rate=%.3f", len(y), pos_rate)
-    if not (0.05 <= pos_rate <= 0.40):
+    logger.info("Loaded train set: rows=%d positive_rate=%.3f features=%d", len(y), pos_rate, len(FEATURE_COLUMNS))
+    logger.info("Feature columns: %s", FEATURE_COLUMNS)
+    if not (0.03 <= pos_rate <= 0.50):
         logger.warning(
-            "Positive rate %.3f is outside expected range [0.05, 0.40]. "
+            "Positive rate %.3f is outside expected range [0.03, 0.50]. "
             "Check dataset or feature engineering.",
             pos_rate,
         )
@@ -113,7 +110,7 @@ def _plot_calibration_curve(model, X: np.ndarray, y: np.ndarray, output_path: Pa
     ax.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
     ax.set_xlabel("Mean predicted probability")
     ax.set_ylabel("Fraction of positives")
-    ax.set_title("Calibration Curve — Delay Predictor (Train Set)")
+    ax.set_title("Calibration Curve - Delay Predictor v2 (Train Set)")
     ax.legend()
     fig.tight_layout()
     fig.savefig(output_path)
@@ -122,10 +119,6 @@ def _plot_calibration_curve(model, X: np.ndarray, y: np.ndarray, output_path: Pa
 
 
 def main() -> None:
-    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5001")
-    mlflow.set_tracking_uri(mlflow_uri)
-    mlflow.set_experiment(EXPERIMENT_NAME)
-
     X, y, encoder = load_data()
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -141,7 +134,6 @@ def main() -> None:
     best_cv_f1 = study.best_value
     logger.info("Best CV F1=%.4f | params=%s", best_cv_f1, best_params)
 
-    # Train final model on full training set with best hyper-parameters.
     neg, pos = np.bincount(y)
     final_params = {
         **best_params,
@@ -158,66 +150,59 @@ def main() -> None:
     calibration_plot_path = PROCESSED / "calibration_curve.png"
     _plot_calibration_curve(calibrated_clf, X, y, calibration_plot_path)
 
-    # Save a direct .pkl model for fallback / non-MLflow environments
     model_pkl_path = PROCESSED / "model.pkl"
     with open(model_pkl_path, "wb") as f:
         pickle.dump(calibrated_clf, f)
-    logger.info("Saved raw pickle model to %s", model_pkl_path)
+    logger.info("Saved model.pkl to %s", model_pkl_path)
 
-    # Feature metadata — loaded by mlflow_client for contract validation.
     feature_meta = {
         "feature_columns": FEATURE_COLUMNS,
-        "feature_version": "v1",
-        "dataset_version": "olist-v1",
+        "feature_version": "v2",
+        "dataset_version": "olist-jabodetabek-v2",
+        "n_features": len(FEATURE_COLUMNS),
+        "training_params": final_params,
+        "cv_f1_best": best_cv_f1,
+        "train_rows": int(len(y)),
+        "positive_rate": float(y.mean()),
     }
     meta_path = PROCESSED / "feature_metadata.json"
     with meta_path.open("w") as f:
-        json.dump(feature_meta, f, indent=2)
+        json.dump(feature_meta, f, indent=2, default=str)
+    logger.info("Feature metadata saved to %s", meta_path)
 
-    with mlflow.start_run(run_name="lightgbm-calibrated") as run:
-        mlflow.set_tags({
-            "dataset_version": "olist-v1",
-            "feature_version": "v1",
-            "feature_columns": ",".join(FEATURE_COLUMNS),
-        })
-        mlflow.log_params(final_params)
-        mlflow.log_metric("cv_f1_best", best_cv_f1)
-        mlflow.log_metric("train_positive_rate", float(y.mean()))
-        mlflow.log_metric("n_train_rows", int(len(y)))
+    # Optional MLflow logging
+    try:
+        import mlflow
+        import mlflow.sklearn
+        mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5001")
+        mlflow.set_tracking_uri(mlflow_uri)
+        mlflow.set_experiment(EXPERIMENT_NAME)
 
-        mlflow.log_artifact(str(calibration_plot_path), artifact_path="plots")
-        mlflow.log_artifact(str(meta_path), artifact_path="metadata")
+        with mlflow.start_run(run_name="lightgbm-calibrated-v2") as run:
+            mlflow.set_tags({
+                "dataset_version": "olist-jabodetabek-v2",
+                "feature_version": "v2",
+                "feature_columns": ",".join(FEATURE_COLUMNS),
+            })
+            mlflow.log_params(final_params)
+            mlflow.log_metric("cv_f1_best", best_cv_f1)
+            mlflow.log_metric("train_positive_rate", float(y.mean()))
+            mlflow.log_metric("n_train_rows", int(len(y)))
+            mlflow.log_artifact(str(calibration_plot_path), artifact_path="plots")
+            mlflow.log_artifact(str(meta_path), artifact_path="metadata")
+            if encoder is not None:
+                encoder_path = PROCESSED / "hub_zone_encoder.pkl"
+                mlflow.log_artifact(str(encoder_path), artifact_path="encoder")
+            mlflow.sklearn.log_model(
+                calibrated_clf,
+                artifact_path="model",
+                registered_model_name=MODEL_NAME,
+            )
+            logger.info("Model logged to MLflow (run_id=%s)", run.info.run_id)
+    except Exception as exc:
+        logger.info("MLflow logging skipped (not available): %s", exc)
 
-        # Bundle encoder alongside the model so inference never has a path dependency.
-        if encoder is not None:
-            encoder_path = PROCESSED / "hub_zone_encoder.pkl"
-            mlflow.log_artifact(str(encoder_path), artifact_path="encoder")
-
-        model_info = mlflow.sklearn.log_model(
-            calibrated_clf,
-            artifact_path="model",
-            registered_model_name=MODEL_NAME,
-        )
-        logger.info(
-            "Model registered: run_id=%s uri=%s",
-            run.info.run_id,
-            model_info.model_uri,
-        )
-
-    # Promote the newly registered version to Staging.
-    client = mlflow.tracking.MlflowClient()
-    versions = client.get_latest_versions(MODEL_NAME, stages=["None"])
-    if versions:
-        version_num = versions[0].version
-        client.transition_model_version_stage(
-            name=MODEL_NAME,
-            version=version_num,
-            stage="Staging",
-            archive_existing_versions=False,
-        )
-        logger.info("Model %s v%s promoted to Staging", MODEL_NAME, version_num)
-    else:
-        logger.warning("No model versions found to promote to Staging.")
+    logger.info("Training complete. Model saved at %s", model_pkl_path)
 
 
 if __name__ == "__main__":

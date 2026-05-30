@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 
 from api.schemas.common import ok
+from api.routers.hubs import HUB_DATA
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -27,6 +28,7 @@ async def carbon_analytics(
                 "vs_baseline_pct": 0.0,
                 "by_day": [],
                 "by_vehicle_type": [],
+                "recent_routes": [],
                 "glec_version": "3.0",
             }
         )
@@ -52,23 +54,23 @@ async def carbon_analytics(
         date_from,
         date_to,
     )
-    by_route = await pool.fetch(
+    recent_routes = await pool.fetch(
         """
-        SELECT 
-            c.shipment_id, 
+        SELECT
+            s.id AS shipment_id,
             s.external_id,
-            s.origin_hub_id,
-            s.destination_zone,
-            c.vehicle_type, 
-            c.co2_kg, 
-            s.distance_km, 
+            s.origin_hub_id AS origin,
+            s.destination_zone AS destination,
+            s.vehicle_type,
             s.load_weight_kg,
+            c.co2_kg,
+            s.distance_km,
             c.calculated_at
-        FROM carbon_records c
-        LEFT JOIN shipments s ON c.shipment_id = s.id
+        FROM shipments s
+        JOIN carbon_records c ON c.shipment_id = s.id
         WHERE c.calculated_at::date BETWEEN $1 AND $2
         ORDER BY c.calculated_at DESC
-        LIMIT 500
+        LIMIT 50
         """,
         date_from,
         date_to,
@@ -94,50 +96,97 @@ async def carbon_analytics(
             "recent_routes": [
                 {
                     "shipment_id": str(row["shipment_id"]),
-                    "external_id": row["external_id"],
-                    "origin": row["origin_hub_id"],
-                    "destination": row["destination_zone"],
+                    "external_id": row["external_id"] or "",
+                    "origin": row["origin"],
+                    "destination": row["destination"],
                     "vehicle_type": row["vehicle_type"],
                     "co2_kg": float(row["co2_kg"]),
                     "distance_km": float(row["distance_km"]),
-                    "load_weight_kg": float(row["load_weight_kg"]),
-                    "calculated_at": row["calculated_at"].isoformat()
+                    "load_weight_kg": float(row["load_weight_kg"] or 0),
+                    "calculated_at": row["calculated_at"].isoformat() if row["calculated_at"] else None
                 }
-                for row in by_route
+                for row in recent_routes
             ],
             "glec_version": "3.0",
         }
     )
 
+
 @router.get("/hubs")
 async def hub_analytics(request: Request):
-    import random
-    HUB_DATA = [
-        { "id": "hub_cakung", "name": "Hub Cakung (East Jakarta)" },
-        { "id": "hub_kebon_jeruk", "name": "Hub Kebon Jeruk (West Jakarta)" },
-        { "id": "hub_pasar_minggu", "name": "Hub Pasar Minggu (South Jakarta)" },
-        { "id": "hub_kelapa_gading", "name": "Hub Kelapa Gading (North Jakarta)" },
-        { "id": "hub_cikarang", "name": "Hub Cikarang (Bekasi Regency)" },
-        { "id": "hub_tangerang", "name": "Hub Tangerang (Airport Cargo)" },
-        { "id": "hub_bekasi", "name": "Hub Bekasi (MM2100)" },
-        { "id": "hub_bogor", "name": "Hub Bogor (Sentul)" },
-        { "id": "hub_depok", "name": "Hub Depok (Cimanggis)" },
-    ]
-    hubs = []
-    for h in HUB_DATA:
-        dwell_time = random.uniform(30, 240)
-        volume = random.randint(10, 500)
-        if dwell_time > 180 or volume > 400:
-            congestion = "high"
-        elif dwell_time > 90 or volume > 200:
-            congestion = "medium"
-        else:
-            congestion = "low"
-        hubs.append({
-            "hub_id": h["id"],
-            "hub_name": h["name"],
-            "congestion_level": congestion,
-            "avg_dwell_time_min": dwell_time,
-            "current_inbound_volume": volume
+    """Hub congestion and dwell time analytics for the Hub Health dashboard tab."""
+    pool = request.app.state.db_pool
+
+    # Build a name lookup from the static hub list
+    hub_names = {h["id"]: h["name"] for h in HUB_DATA}
+
+    if pool is None:
+        return ok({
+            "hubs": [
+                {
+                    "hub_id": h["id"],
+                    "hub_name": h["name"],
+                    "congestion_level": "low",
+                    "avg_dwell_time_min": 120.0,
+                    "current_inbound_volume": 0,
+                    "delay_rate": 0.0,
+                }
+                for h in HUB_DATA
+            ]
         })
-    return ok({"hubs": hubs})
+
+    rows = await pool.fetch(
+        """
+        SELECT
+            hub_id,
+            AVG(avg_dwell_time_min)   AS avg_dwell_time_min,
+            SUM(inbound_volume)       AS inbound_volume,
+            AVG(delay_rate)           AS delay_rate
+        FROM (
+            SELECT hub_id, avg_dwell_time_min, inbound_volume, delay_rate
+            FROM hub_metrics
+            ORDER BY time DESC
+            LIMIT 500
+        ) recent
+        GROUP BY hub_id
+        ORDER BY hub_id
+        """
+    )
+
+    def _congestion(dwell_min: float, delay_rate: float) -> str:
+        if dwell_min > 180 or delay_rate > 0.15:
+            return "high"
+        if dwell_min > 120 or delay_rate > 0.08:
+            return "medium"
+        return "low"
+
+    hubs_result = []
+    seen_ids = set()
+
+    for row in rows:
+        hub_id = row["hub_id"]
+        seen_ids.add(hub_id)
+        dwell = float(row["avg_dwell_time_min"] or 120.0)
+        delay = float(row["delay_rate"] or 0.0)
+        hubs_result.append({
+            "hub_id": hub_id,
+            "hub_name": hub_names.get(hub_id, hub_id.replace("_", " ").title()),
+            "congestion_level": _congestion(dwell, delay),
+            "avg_dwell_time_min": round(dwell, 1),
+            "current_inbound_volume": int(row["inbound_volume"] or 0),
+            "delay_rate": round(delay, 4),
+        })
+
+    # Include hubs with no metrics yet (show as idle)
+    for h in HUB_DATA:
+        if h["id"] not in seen_ids:
+            hubs_result.append({
+                "hub_id": h["id"],
+                "hub_name": h["name"],
+                "congestion_level": "low",
+                "avg_dwell_time_min": 120.0,
+                "current_inbound_volume": 0,
+                "delay_rate": 0.0,
+            })
+
+    return ok({"hubs": hubs_result})

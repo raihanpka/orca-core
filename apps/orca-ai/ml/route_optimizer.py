@@ -73,6 +73,7 @@ class RoutingProblem(ElementwiseProblem):
         origin_hub: str,
         road_network: RoadNetworkProvider,
         traffic_multiplier: float = 1.25,
+        stop_delay_probs: dict[str, float] | None = None,
     ):
         super().__init__(n_var=len(stops), n_obj=4, n_ieq_constr=1, xl=0.0, xu=1.0)
         self.stops = stops
@@ -82,6 +83,9 @@ class RoutingProblem(ElementwiseProblem):
         self.factor = _emission_factor(vehicle_type)
         self.road_network = road_network
         self.traffic_multiplier = traffic_multiplier
+        # LightGBM delay probabilities per stop (keyed by shipment_id).
+        # Falls back to 0.05 for stops without a cached prediction.
+        self.stop_delay_probs: dict[str, float] = stop_delay_probs or {}
         self._metrics_cache: dict[tuple[int, ...], dict] = {}
 
     def _evaluate(self, x: np.ndarray, out: dict, *args, **kwargs) -> None:
@@ -112,16 +116,33 @@ class RoutingProblem(ElementwiseProblem):
             route_points.append(point)
 
         travel_time_min = max(1, int(total_km / 35 * 60 * self.traffic_multiplier))
-        co2_kg = round(total_km * (1.0 + (self.load_weight_kg / 1000.0)) * self.factor, 4)
+        co2_kg = round(total_km * (self.load_weight_kg / 1000.0) * self.factor, 4)
         fuel_cost_idr = _calculate_fuel_cost(total_km, self.vehicle_type)
 
-        latest_deadline = min(stop.sla_deadline for stop in ordered_stops)
-        remaining_min = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 60
-        sla_risk = (
-            100.0
-            if travel_time_min > remaining_min
-            else min(65.0, travel_time_min / max(remaining_min, 1) * 50)
-        )
+        # SLA risk: use LightGBM delay_probability per stop, adjusted for
+        # remaining time after travel.  Take the worst-case stop as the
+        # route's composite risk so NSGA-II penalises orderings that push
+        # tight-deadline stops to the end of the sequence.
+        from ml.sla_scorer import compute_sla_risk
+        now = datetime.now(timezone.utc)
+        travel_hours = travel_time_min / 60.0
+        stop_risks: list[float] = []
+        for idx, stop in enumerate(ordered_stops):
+            deadline = stop.sla_deadline
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            total_remaining = (deadline - now).total_seconds() / 3600
+            # Proportional travel time to reach this stop in the sequence
+            fraction = (idx + 1) / len(ordered_stops)
+            time_to_stop = travel_hours * fraction
+            if time_to_stop >= total_remaining:
+                stop_risks.append(100.0)
+            else:
+                remaining_after_travel = max(total_remaining - time_to_stop, 0.0)
+                delay_prob = self.stop_delay_probs.get(stop.shipment_id, 0.05)
+                risk, _ = compute_sla_risk(delay_prob, remaining_after_travel, distance_km=total_km)
+                stop_risks.append(risk)
+        sla_risk = max(stop_risks) if stop_risks else 0.0
 
         geometry_coordinates = (
             self.road_network.route_coordinates(route_points, vehicle_type=self.vehicle_type)
@@ -136,6 +157,7 @@ class RoutingProblem(ElementwiseProblem):
                 "coordinates": geometry_coordinates,
             },
             "distance_source": self.road_network.last_source,
+            "distance_km": round(total_km, 2),
             "travel_time_min": travel_time_min,
             "co2_kg": co2_kg,
             "fuel_cost_idr": fuel_cost_idr,
@@ -169,8 +191,13 @@ async def optimize_route(
     origin_hub: str,
     routing_engine: str = "osmnx",
     traffic_multiplier: float = 1.25,
+    stop_delay_probs: dict[str, float] | None = None,
 ) -> tuple[list[dict], int, bool]:
-    return await asyncio.to_thread(_optimize_route_sync, stops, vehicle_type, load_weight_kg, origin_hub, routing_engine, traffic_multiplier)
+    return await asyncio.to_thread(
+        _optimize_route_sync,
+        stops, vehicle_type, load_weight_kg, origin_hub,
+        routing_engine, traffic_multiplier, stop_delay_probs,
+    )
 
 def _optimize_route_sync(
     stops: list[DeliveryStop],
@@ -179,6 +206,7 @@ def _optimize_route_sync(
     origin_hub: str,
     routing_engine: str = "osmnx",
     traffic_multiplier: float = 1.25,
+    stop_delay_probs: dict[str, float] | None = None,
 ) -> tuple[list[dict], int, bool]:
     started = time.perf_counter()
     settings = get_settings()
@@ -196,6 +224,7 @@ def _optimize_route_sync(
     else:
         provider = get_road_network_provider()
 
+    probs = stop_delay_probs or {}
     if len(stops) <= 5:
         perms = list(itertools.permutations(range(len(stops))))
         rows = []
@@ -205,9 +234,9 @@ def _optimize_route_sync(
                 arr[idx] = order
             rows.append(arr)
         rows = np.array(rows)
-        problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub, provider, traffic_multiplier)
+        problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub, provider, traffic_multiplier, probs)
     else:
-        problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub, provider, traffic_multiplier)
+        problem = RoutingProblem(stops, vehicle_type, load_weight_kg, origin_hub, provider, traffic_multiplier, probs)
         algorithm = NSGA2(pop_size=pop_size)
         result = minimize(problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False)
         rows = result.X if result.X is not None else np.random.default_rng(42).random((1, len(stops)))
