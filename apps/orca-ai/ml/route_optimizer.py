@@ -140,7 +140,7 @@ class RoutingProblem(ElementwiseProblem):
             else:
                 remaining_after_travel = max(total_remaining - time_to_stop, 0.0)
                 delay_prob = self.stop_delay_probs.get(stop.shipment_id, 0.05)
-                risk, _ = compute_sla_risk(delay_prob, remaining_after_travel)
+                risk, _ = compute_sla_risk(delay_prob, remaining_after_travel, distance_km=total_km)
                 stop_risks.append(risk)
         sla_risk = max(stop_risks) if stop_risks else 0.0
 
@@ -157,6 +157,7 @@ class RoutingProblem(ElementwiseProblem):
                 "coordinates": geometry_coordinates,
             },
             "distance_source": self.road_network.last_source,
+            "distance_km": round(total_km, 2),
             "travel_time_min": travel_time_min,
             "co2_kg": co2_kg,
             "fuel_cost_idr": fuel_cost_idr,
