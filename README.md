@@ -29,8 +29,7 @@ orca/
 │   ├── raw/olist/            # Downloaded Olist CSVs (gitignored)
 │   └── processed/            # Feature parquet files and OSMnx graph artifacts
 ├── scripts/
-│   ├── ingest/               # build_features.py, seed_db.py
-│   └── simulate/             # stream_replay.py, demo_scenario_1-3.py
+│   ├── ingest/               # build_features.py, seed_db.py, stream_data.py
 ├── infra/
 │   └── init-db/01_schema.sql # TimescaleDB schema (auto-mounted on first container start)
 └── mlruns/                   # MLflow artifact storage
@@ -116,21 +115,14 @@ All other variables (database URLs, Redis, MLflow) are pre-filled to match the D
 ### Full Stack via Docker Compose
 
 ```bash
-# Start infrastructure (PostgreSQL, Redis, MLflow)
-make infra-up
+# Build and start all services (PostgreSQL, Redis, MLflow, orca-ai, orca-worker, orca-web)
+make up
 
-# Put the manually downloaded Olist CSV files in data/raw/olist/ first.
-# See data/raw/olist/README.md for the required filenames.
-make build-features
+# Seed the database
 make seed-db
 
-# Backend phase can run without training; orca-ai uses a fallback predictor.
-# The modeling owner can later implement:
-# make train
-# make evaluate
-
-# Start all application services
-make dev
+# View logs
+make logs
 ```
 
 ### Individual Services (Local Development)
@@ -144,28 +136,24 @@ make dev-web      # Next.js on http://localhost:3000
 
 ```bash
 # Replay historical events to the live dashboard
-make simulate
-
-# Or run a specific demo scenario
-cd apps/orca-ai && uv run python ../../scripts/simulate/demo_scenario_2.py
+cd apps/orca-ai && uv run python ../../scripts/ingest/stream_data.py
 ```
 
 ## Available Commands
 
 | Command | Description |
 |---|---|
-| `make infra-up` | Start PostgreSQL, Redis, MLflow |
-| `make infra-down` | Stop infrastructure services |
-| `make dev` | Start all services via Docker Compose |
-| `make download-data` | Optional Kaggle download helper; manual placement in `data/raw/olist/` is supported |
-| `make build-features` | Run feature engineering pipeline |
-| `make seed-db` | Seed PostgreSQL with 1,000 sample shipments |
-| `make train` | Modeling handoff placeholder for LightGBM + MLflow |
-| `make evaluate` | Modeling handoff placeholder for validation + promotion |
-| `make simulate` | Replay simulation stream to Redis |
-| `make test-ai` | Python pytest with coverage |
-| `make test-engine` | Go test ./... |
-| `make clean` | Remove build artifacts and cached models |
+| `make install` | Install dependencies for backend and frontend |
+| `make build` | Build Docker images for all services |
+| `make up` | Start all services via Docker Compose |
+| `make down` | Stop infrastructure services |
+| `make restart` | Restart Docker Compose services |
+| `make logs` | View logs for orca-ai and orca-web |
+| `make dev-ai` | Run FastAPI server locally via uv |
+| `make dev-web` | Run Next.js server locally via pnpm |
+| `make test` | Run tests for backend and frontend |
+| `make seed-db` | Seed PostgreSQL with sample shipments |
+| `make clean` | Remove build artifacts and caches |
 
 ## API Reference
 
