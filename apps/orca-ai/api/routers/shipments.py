@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 import numpy as np
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Query, Request, HTTPException
 from api.schemas.shipment import CreateShipmentRequest
 
 from api.schemas.common import ok
+from api.routers.hubs import HUB_DATA
 from core.config import get_settings
 from db.queries import (
     bulk_insert_alerts,
@@ -23,10 +25,23 @@ from ml.sla_scorer import compute_sla_risk
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
 
+HUB_COORDS: dict[str, tuple[float, float]] = {
+    h["id"]: (h["lat"], h["lng"]) for h in HUB_DATA
+}
+
+
+def _intervention(risk_score: float | None) -> str:
+    if risk_score is None or risk_score < 40:
+        return "monitor"
+    if risk_score < 70:
+        return "notify_customer_proactively"
+    return "reroute_via_toll"
+
+
 async def _get_cached_hub_rates(hub_id: str, request: Request) -> dict[str, float]:
     redis = request.app.state.redis
     cache_key = f"orca:cache:hub_rates:{hub_id}"
-    
+
     if redis:
         try:
             cached = await redis.get(cache_key)
@@ -34,15 +49,15 @@ async def _get_cached_hub_rates(hub_id: str, request: Request) -> dict[str, floa
                 return json.loads(cached)
         except Exception:
             pass
-            
+
     rates = await get_hub_historical_rates(request.app.state.db_pool, hub_id)
-    
+
     if redis:
         try:
-            await redis.set(cache_key, json.dumps(rates), ex=1800) # Cache for 30m
+            await redis.set(cache_key, json.dumps(rates), ex=1800)
         except Exception:
             pass
-            
+
     return rates
 
 def _features_from_shipment(row, historical_rates: dict | None = None) -> dict:
@@ -189,10 +204,9 @@ def _shap_contributions(explainer: object | None, model: object, label_encoder: 
         ]
     except Exception:
         return _fallback_contributions(features)
-from api.routers.hubs import HUB_DATA
+
 
 @router.post("/", response_model=dict)
-
 async def create_shipment(req: CreateShipmentRequest, request: Request):
     now = datetime.now(timezone.utc)
     

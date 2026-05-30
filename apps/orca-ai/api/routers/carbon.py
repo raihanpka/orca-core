@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 
 from api.schemas.common import ok
+from api.routers.hubs import HUB_DATA
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -73,3 +74,83 @@ async def carbon_analytics(
             "glec_version": "3.0",
         }
     )
+
+
+@router.get("/hubs")
+async def hub_analytics(request: Request):
+    """Hub congestion and dwell time analytics for the Hub Health dashboard tab."""
+    pool = request.app.state.db_pool
+
+    # Build a name lookup from the static hub list
+    hub_names = {h["id"]: h["name"] for h in HUB_DATA}
+
+    if pool is None:
+        return ok({
+            "hubs": [
+                {
+                    "hub_id": h["id"],
+                    "hub_name": h["name"],
+                    "congestion_level": "low",
+                    "avg_dwell_time_min": 120.0,
+                    "current_inbound_volume": 0,
+                    "delay_rate": 0.0,
+                }
+                for h in HUB_DATA
+            ]
+        })
+
+    rows = await pool.fetch(
+        """
+        SELECT
+            hub_id,
+            AVG(avg_dwell_time_min)   AS avg_dwell_time_min,
+            SUM(inbound_volume)       AS inbound_volume,
+            AVG(delay_rate)           AS delay_rate
+        FROM (
+            SELECT hub_id, avg_dwell_time_min, inbound_volume, delay_rate
+            FROM hub_metrics
+            ORDER BY time DESC
+            LIMIT 500
+        ) recent
+        GROUP BY hub_id
+        ORDER BY hub_id
+        """
+    )
+
+    def _congestion(dwell_min: float, delay_rate: float) -> str:
+        if dwell_min > 180 or delay_rate > 0.15:
+            return "high"
+        if dwell_min > 120 or delay_rate > 0.08:
+            return "medium"
+        return "low"
+
+    hubs_result = []
+    seen_ids = set()
+
+    for row in rows:
+        hub_id = row["hub_id"]
+        seen_ids.add(hub_id)
+        dwell = float(row["avg_dwell_time_min"] or 120.0)
+        delay = float(row["delay_rate"] or 0.0)
+        hubs_result.append({
+            "hub_id": hub_id,
+            "hub_name": hub_names.get(hub_id, hub_id.replace("_", " ").title()),
+            "congestion_level": _congestion(dwell, delay),
+            "avg_dwell_time_min": round(dwell, 1),
+            "current_inbound_volume": int(row["inbound_volume"] or 0),
+            "delay_rate": round(delay, 4),
+        })
+
+    # Include hubs with no metrics yet (show as idle)
+    for h in HUB_DATA:
+        if h["id"] not in seen_ids:
+            hubs_result.append({
+                "hub_id": h["id"],
+                "hub_name": h["name"],
+                "congestion_level": "low",
+                "avg_dwell_time_min": 120.0,
+                "current_inbound_volume": 0,
+                "delay_rate": 0.0,
+            })
+
+    return ok({"hubs": hubs_result})
