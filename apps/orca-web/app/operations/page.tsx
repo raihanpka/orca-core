@@ -186,7 +186,7 @@ export default function OperationsPage() {
                           href={`/shipments/${shipment.id}`}
                           className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
                         >
-                          Explain
+                          <InfoIcon className="h-4 w-4 mr-1" /> Detail
                         </Link>
                       </TableCell>
                     </TableRow>
