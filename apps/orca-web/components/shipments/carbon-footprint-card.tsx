@@ -29,20 +29,20 @@ export function CarbonFootprintCard({
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
-                <p className="text-slate-500 text-xs">Distance</p>
+                <p className="text-slate-900 text-sm">Distance</p>
                 <p className="font-semibold text-slate-800">{formatNumber(carbon.distance_km, 1)} km</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
-                <p className="text-slate-500 text-xs">Emission Factor</p>
+                <p className="text-slate-900 text-sm">Emission Factor</p>
                 <p className="font-semibold text-slate-800">{carbon.emission_factor} kg/tkm</p>
               </div>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-sm text-slate-800">
               Formula: distance × load_ton × factor (GLEC Framework v{carbon.glec_version})
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-sm gap-2">
+          <div className="flex flex-col items-center justify-center h-40 text-slate-800 text-base gap-2">
             <LeafIcon className="h-8 w-8 text-slate-300" />
             <p>Carbon record not yet generated</p>
             <p className="text-xs">Generated after first ML prediction run</p>

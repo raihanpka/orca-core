@@ -31,14 +31,14 @@ export function ShipmentProfileCard({
           <>
             <ProfileRow icon={RouteIcon} label="Origin Hub" value={shipment.origin_hub_id} />
             <Separator />
-            <ProfileRow icon={MapPinIcon} label="Destination" value={shipment.destination_zone ?? "—"} />
+            <ProfileRow icon={MapPinIcon} label="Destination" value={shipment.destination_zone ?? "-"} />
             <Separator />
             <ProfileRow icon={TruckIcon} label="Vehicle" value={vehicleLabel(shipment.vehicle_type)} />
             <Separator />
             <ProfileRow
               icon={WeightIcon}
               label="Load"
-              value={`${formatNumber(shipment.load_weight_kg, 1)} kg — ${shipment.item_count} items`}
+              value={`${formatNumber(shipment.load_weight_kg, 1)} kg (${shipment.item_count} items)`}
             />
             <Separator />
             <ProfileRow icon={RouteIcon} label="Distance" value={`${formatNumber(shipment.distance_km, 1)} km`} />

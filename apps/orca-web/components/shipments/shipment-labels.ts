@@ -11,7 +11,7 @@ export function vehicleLabel(v: string) {
 
 export function interventionLabel(key: string) {
   const map: Record<string, string> = {
-    monitor: "Continue monitoring — risk within acceptable range",
+    monitor: "Continue monitoring - risk within acceptable range",
     notify_customer_proactively: "Notify customer proactively about potential delay",
     reroute_via_toll: "Reroute via toll road to save time",
     escalate_to_courier_manager: "Escalate to courier manager immediately",

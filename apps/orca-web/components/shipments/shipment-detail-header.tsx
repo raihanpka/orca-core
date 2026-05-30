@@ -42,7 +42,7 @@ export function ShipmentDetailHeader({
           </Badge>
         )}
       </div>
-      <p className="text-sm text-slate-500 mt-1 font-mono">{id}</p>
+      <p className="text-base text-slate-900 mt-1 font-mono">{id}</p>
     </div>
   )
 }

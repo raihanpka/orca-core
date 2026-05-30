@@ -77,7 +77,7 @@ def main() -> None:
 
     meta = {
         "model_format": "lightgbm-native",
-        "model_version": "lgbm-v2",
+        "model_version": "LightGBM",
         "calibration_method": "sigmoid",
         "n_folds": len(calibrators_meta),
         "calibrators": calibrators_meta,

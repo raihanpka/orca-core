@@ -87,7 +87,7 @@ export default function OperationsPage() {
     <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-slate-50/50 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Operations</h1>
-        <p className="text-sm text-slate-500">Manage active shipments, routing, and hub congestion.</p>
+        <p className="text-base text-slate-900">Manage active shipments, routing, and hub congestion.</p>
       </div>
 
       {showAlert && (
@@ -175,7 +175,7 @@ export default function OperationsPage() {
                             {isHighRisk ? 'High' : 'Low'}
                           </span>
                         ) : (
-                          <div className="flex items-center text-slate-400 text-xs gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin" /> Scoring...</div>
+                          <div className="flex items-center text-slate-800 text-sm gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin" /> Scoring...</div>
                         )}
                       </TableCell>
                       <TableCell className="font-semibold text-slate-900 pr-6">
@@ -201,7 +201,7 @@ export default function OperationsPage() {
                 )}
               </TableBody>
             </Table>
-            <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-sm text-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
               <span>
                 Showing {filteredRows.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(safePage * ITEMS_PER_PAGE, filteredRows.length)} of {filteredRows.length} entries
               </span>
@@ -290,7 +290,7 @@ function Metric({title, value, helper}: {title: string; value: string; helper?: 
       </CardHeader>
       {helper && (
         <CardContent className="pb-4 px-5 pt-0">
-          <div className="text-xs text-slate-400">{helper}</div>
+          <div className="text-sm text-slate-800">{helper}</div>
         </CardContent>
       )}
     </Card>

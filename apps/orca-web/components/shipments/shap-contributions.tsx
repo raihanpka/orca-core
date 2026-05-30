@@ -39,7 +39,7 @@ function ShapBar({
           {contribution.toFixed(3)}
         </span>
       </div>
-      <div className="w-20 shrink-0 text-xs text-slate-400 text-right">
+      <div className="w-20 shrink-0 text-sm text-slate-800 text-right">
         val: {typeof value === "number" ? formatNumber(value, 2) : value}
       </div>
     </div>
@@ -64,7 +64,7 @@ export function ShapContributionsCard({
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <BrainCircuitIcon className="h-4 w-4 text-purple-600" /> Why is this shipment at
-          risk? — SHAP Feature Contributions
+          risk? - SHAP Feature Contributions
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -76,12 +76,12 @@ export function ShapContributionsCard({
           </div>
         ) : contributions?.length ? (
           <div>
-            <div className="flex text-xs text-slate-400 mb-2 gap-3">
+            <div className="flex text-sm text-slate-800 mb-2 gap-3">
               <span className="w-40 shrink-0">Feature</span>
               <span className="flex-1">
-                <span className="text-rose-500">red = increases risk</span>
+                <span className="text-rose-500">Red Color = Increases Risk</span>
                 {" / "}
-                <span className="text-indigo-400">blue = reduces risk</span>
+                <span className="text-indigo-400">Blue Color = Reduces Risk</span>
               </span>
               <span className="w-14 text-right">SHAP</span>
               <span className="w-20 text-right">Value</span>
@@ -97,13 +97,13 @@ export function ShapContributionsCard({
               />
             ))}
             <Separator className="mt-2" />
-            <p className="text-xs text-slate-400 mt-3">
+            <p className="text-sm text-slate-800 mt-3">
               SHAP (SHapley Additive exPlanations) values show how each feature pushes the delay
               probability above or below the baseline. Model: {modelVersion}.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-32 text-slate-400 text-sm gap-2">
+          <div className="flex flex-col items-center justify-center h-32 text-slate-800 text-base gap-2">
             <BrainCircuitIcon className="h-8 w-8 text-slate-300" />
             <p>SHAP explanations will appear once a prediction is stored for this shipment</p>
           </div>

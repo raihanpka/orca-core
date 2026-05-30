@@ -16,9 +16,9 @@ function RiskGauge({ score }: { score: number }) {
         : "bg-emerald-50 border-emerald-200"
 
   return (
-    <div className={`flex flex-col items-center justify-center rounded-sm border p-5 ${bg}`}>
+    <div className={`flex flex-col items-center justify-center rounded-sm border p-5 h-full ${bg}`}>
       <p className={`text-5xl font-black ${color}`}>{formatNumber(score, 0)}</p>
-      <p className="text-xs text-slate-500 mt-1">out of 100</p>
+      <p className="text-sm text-slate-900 mt-1">out of 100</p>
       <RiskBadge score={score} />
     </div>
   )
@@ -48,7 +48,7 @@ export function SlaRiskGauge({
         ) : score != null ? (
           <RiskGauge score={score} />
         ) : (
-          <p className="text-slate-400 text-sm">No prediction available</p>
+          <p className="text-slate-800 text-base">No prediction available</p>
         )}
       </CardContent>
     </Card>
