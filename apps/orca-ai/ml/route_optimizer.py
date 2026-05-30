@@ -116,12 +116,14 @@ class RoutingProblem(ElementwiseProblem):
         fuel_cost_idr = _calculate_fuel_cost(total_km, self.vehicle_type)
 
         latest_deadline = min(stop.sla_deadline for stop in ordered_stops)
-        remaining_min = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 60
-        sla_risk = (
-            100.0
-            if travel_time_min > remaining_min
-            else min(65.0, travel_time_min / max(remaining_min, 1) * 50)
-        )
+        remaining_hours = (latest_deadline - datetime.now(timezone.utc)).total_seconds() / 3600
+        travel_hours = travel_time_min / 60.0
+        if travel_hours > remaining_hours:
+            sla_risk = 100.0
+        else:
+            from ml.sla_scorer import compute_sla_risk
+            time_pressure = min(travel_hours / max(remaining_hours, 0.1), 1.0)
+            sla_risk, _ = compute_sla_risk(time_pressure, remaining_hours)
 
         geometry_coordinates = (
             self.road_network.route_coordinates(route_points, vehicle_type=self.vehicle_type)

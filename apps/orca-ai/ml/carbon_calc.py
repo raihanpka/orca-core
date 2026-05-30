@@ -1,3 +1,13 @@
+"""GLEC v3.0 aligned carbon emission calculation.
+
+Formula: CO2 = distance_km * (1 + load_weight_ton) * emission_factor
+
+The (1 + load_ton) term accounts for both the vehicle's own weight contribution
+and the cargo: an empty vehicle still emits (factor * distance), and cargo adds
+proportionally. This matches the SQL formula in bulk_insert_carbon_records.
+"""
+
+
 async def load_emission_factors(db_pool) -> dict[str, dict]:
     if db_pool is None:
         return {"van_diesel": {"emission_factor": 0.243, "glec_version": "3.0"}}
@@ -14,7 +24,7 @@ async def load_emission_factors(db_pool) -> dict[str, dict]:
 def compute_co2(distance_km: float, load_weight_kg: float, vehicle_type: str, emission_factors: dict) -> float:
     load_weight_ton = load_weight_kg / 1000.0
     factor = emission_factors.get(vehicle_type, emission_factors.get("van_diesel", {})).get("emission_factor", 0.243)
-    return round(distance_km * load_weight_ton * factor, 4)
+    return round(distance_km * (1.0 + load_weight_ton) * factor, 4)
 
 
 async def write_carbon_record(db_pool, shipment_id: str, distance_km: float, load_weight_kg: float, vehicle_type: str) -> None:

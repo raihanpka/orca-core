@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class StadiaMapsProvider:
     def __init__(self):
-        self.api_key = os.getenv("STADIA_API_KEY", "")
+        self.api_key = get_settings().stadia_api_key or os.getenv("STADIA_API_KEY", "")
         self.base_url = "https://api.stadiamaps.com/route/v1"
         self._distance_cache: dict[tuple[Coordinate, Coordinate], float] = {}
         self._geometry_cache: dict[tuple[Coordinate, Coordinate], list[list[float]]] = {}
