@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { CartesianGrid, Bar, BarChart, XAxis, YAxis, PieChart, Pie, Cell, Label as RechartsLabel } from "recharts"
-import { AlertTriangleIcon, XIcon, SearchIcon, Loader2Icon, CloudIcon, TruckIcon } from "lucide-react"
+import { AlertTriangleIcon, XIcon, SearchIcon, Loader2Icon, CloudIcon, TruckIcon, ChevronRightIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -280,9 +280,13 @@ export default function CarbonDashboardPage() {
                         : "Calculating..."}
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="inline-block p-2 -mr-2 text-slate-300 cursor-not-allowed" title="Detail page is under construction">
-                        ›
-                      </span>
+                      <Link
+                        href={`/shipments/${shipment.id}`}
+                        className="inline-flex p-2 -mr-2 text-slate-400 hover:text-[#005A8C] transition-colors"
+                        title="View shipment detail & ML prediction"
+                      >
+                        <ChevronRightIcon className="h-4 w-4" />
+                      </Link>
                     </TableCell>
                   </TableRow>
                 )
