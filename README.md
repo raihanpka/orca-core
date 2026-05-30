@@ -128,7 +128,7 @@ make logs
 ### Individual Services (Local Development)
 
 ```bash
-make dev-ai       # FastAPI on http://localhost:8000
+make dev-ai       # FastAPI on http://localhost:8010
 make dev-web      # Next.js on http://localhost:3000
 ```
 
@@ -159,7 +159,7 @@ cd apps/orca-ai && uv run python ../../scripts/ingest/stream_data.py
 
 Once orca-ai is running, interactive docs are at:
 
-- **Swagger UI:** http://localhost:8000/docs
+- **Swagger UI:** http://localhost:8010/docs
 - **MLflow UI:** http://localhost:5001
 
 Key endpoints:
@@ -167,26 +167,26 @@ Key endpoints:
 ```bash
 # Active shipments with SLA risk scores
 curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
-  http://localhost:8000/shipments/active?min_risk=50
+  http://localhost:8010/shipments/active?min_risk=50
 
 # Detailed prediction with SHAP breakdown
 curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
-  http://localhost:8000/shipments/{id}/prediction
+  http://localhost:8010/shipments/{id}/prediction
 
 # Multi-objective route optimization (Pareto front)
-POST http://localhost:8000/optimize/route with header X-API-Token
+POST http://localhost:8010/optimize/route with header X-API-Token
 
 # Carbon footprint analytics (GLEC v3.0)
 curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
-  "http://localhost:8000/analytics/carbon?date_from=2026-05-01&date_to=2026-05-24"
+  "http://localhost:8010/analytics/carbon?date_from=2026-05-01&date_to=2026-05-24"
 
 # Hub congestion metrics
 curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
-  "http://localhost:8000/analytics/hubs?hours=6"
+  "http://localhost:8010/analytics/hubs?hours=6"
 
 # Recent alerts (for dashboard banner)
 curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
-  http://localhost:8000/alerts/recent
+  http://localhost:8010/alerts/recent
 ```
 
 ---

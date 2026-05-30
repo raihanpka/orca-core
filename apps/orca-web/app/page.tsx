@@ -82,8 +82,8 @@ function CarbonFootprintTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 md:grid-cols-2">
-        <Metric title="Total CO2" value={`${formatNumber(data.total_co2_kg, 3)} kg`} helper={`GLEC ${data.glec_version}`} />
-        <Metric title="Average CO2 per Shipment" value={`${formatNumber(data.avg_co2_per_shipment_kg, 3)} kg`} helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." />
+        <Metric title="Total CO2" value={`${formatNumber(data.total_co2_kg, 1)} kg`} helper={`GLEC ${data.glec_version}`} />
+        <Metric title="Average CO2 per Shipment" value={`${formatNumber(data.avg_co2_per_shipment_kg, 1)} kg`} helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

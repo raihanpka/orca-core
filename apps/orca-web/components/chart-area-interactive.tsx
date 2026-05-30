@@ -102,7 +102,7 @@ export function ChartAreaInteractive({data = fallbackData}: {data?: RiskTrendDat
               tickMargin={8}
               minTickGap={32}
               tickFormatter={(value) =>
-                new Date(value).toLocaleDateString("id-ID", {
+                new Date(value).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })
@@ -113,7 +113,7 @@ export function ChartAreaInteractive({data = fallbackData}: {data?: RiskTrendDat
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) =>
-                    new Date(value).toLocaleDateString("id-ID", {
+                    new Date(value).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                     })

@@ -65,7 +65,7 @@ orca-web (Next.js :3000)
         | HTTP REST (polling via SWR)
         | WebSocket ws://orca-engine:9090/ws (real-time push)
         v
-orca-ai (FastAPI :8000)          <-- ML inference, NSGA-II optimizer, carbon calculator
+orca-ai (FastAPI :8010)          <-- ML inference, NSGA-II optimizer, carbon calculator
         |                              MLflow model registry, feature engineering
         | REST HTTP (internal Docker network, no gRPC)
         v
@@ -118,7 +118,7 @@ networks:
 services:
   postgres:  # No ports: key - host cannot reach 5432 directly
   redis:     # No ports: key - host cannot reach 6380 directly
-  orca-ai:   # ports: ["8000:8000"]
+  orca-ai:   # ports: ["8010:8010"]
   orca-engine: # ports: ["9090:9090"]
   orca-web:  # ports: ["3000:3000"]
   mlflow:    # ports: ["5001:5001"]
@@ -330,7 +330,7 @@ orca/
 
 ## Service Contracts and API Endpoints
 
-### orca-ai REST API (FastAPI :8000)
+### orca-ai REST API (FastAPI :8010)
 
 All responses use the envelope format:
 ```json
@@ -910,7 +910,7 @@ per-service `.env.example` files under `apps/`.
 
 ```env
 APP_ENV=development
-APP_PORT=8000
+APP_PORT=8010
 DEBUG=true
 
 DATABASE_URL=postgresql://orca:orca_pass@postgres:5432/orca_db
@@ -926,13 +926,13 @@ MLFLOW_TRACKING_URI=http://mlflow:5001
 MLFLOW_MODEL_NAME=delay-predictor
 MLFLOW_MODEL_STAGE=Production
 
-AI_SERVICE_URL=http://orca-ai:8000
+AI_SERVICE_URL=http://orca-ai:8010
 PREDICTION_INTERVAL_SECONDS=900
 ALERT_RISK_THRESHOLD=70.0
 WS_PORT=9090
 WS_ALLOWED_ORIGINS=http://localhost:3000
 
-NEXT_PUBLIC_API_BASE=http://localhost:8000
+NEXT_PUBLIC_API_BASE=http://localhost:8010
 NEXT_PUBLIC_WS_BASE=ws://localhost:9090
 NEXT_PUBLIC_POLL_INTERVAL_MS=15000
 NEXT_PUBLIC_API_TOKEN=change_me_for_public_api
@@ -967,7 +967,7 @@ make dev            # docker compose up -d (all services)
 make dev-down       # docker compose down
 
 # Individual services (local, without Docker)
-make dev-ai         # cd apps/orca-ai && uv run uvicorn main:app --reload --port 8000
+make dev-ai         # cd apps/orca-ai && uv run uvicorn main:app --reload --port 8010
 make dev-engine     # go run ./apps/orca-engine/main.go
 make dev-web        # cd apps/orca-web && pnpm dev
 
@@ -1049,7 +1049,7 @@ make clean          # Remove build artifacts, cached models, parquet files
 - [ ] `make seed-db` completes and `glec_emission_factors` table has 5 rows.
 - [ ] Backend phase: `make train` and `make evaluate` are explicit placeholders for the modeling owner.
 - [ ] Modeling phase: implemented training produces a registered MLflow model in `Production`.
-- [ ] `make dev-ai` starts FastAPI on :8000 without errors; `GET /docs` shows all endpoints.
+- [ ] `make dev-ai` starts FastAPI on :8010 without errors; `GET /docs` shows all endpoints.
 - [ ] `make dev-engine` starts Go engine, logs successful Redis and PostgreSQL connections.
 - [ ] `make dev-web` starts Next.js on :3000 without TypeScript or build errors.
 - [ ] `make simulate` replays events; dashboard shows live-updating shipment table.
