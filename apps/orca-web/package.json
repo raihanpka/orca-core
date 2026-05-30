@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_OPTIONS='--no-deprecation' next dev",
-    "build": "NODE_OPTIONS='--no-deprecation' next build",
-    "start": "NODE_OPTIONS='--no-deprecation' next start",
+    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev -p 3001",
+    "build": "cross-env NODE_OPTIONS=--no-deprecation next build",
+    "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "^1.0.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "knip": "^6.2.0",
