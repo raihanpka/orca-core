@@ -182,43 +182,12 @@ export default function OperationsPage() {
                         {shipment.co2_kg ? `${formatNumber(shipment.co2_kg, 2)} kg` : '-'}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Dialog>
-                          <DialogTrigger className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors">
-                            <InfoIcon className="h-4 w-4 mr-1" /> Detail
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                              <DialogTitle>Carbon Explainability</DialogTitle>
-                              <DialogDescription>
-                                GLEC v3.0 Framework calculation for <strong>{shipment.external_id ?? shipment.id.slice(0, 8)}</strong>
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Vehicle Type</span>
-                                <span className="text-sm font-medium capitalize">{toTitleCase(shipment.vehicle_type)}</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Distance Traveled</span>
-                                <span className="text-sm font-medium">{formatNumber(shipment.distance_km || 0, 1)} km</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Load Weight</span>
-                                <span className="text-sm font-medium">{formatNumber(shipment.load_weight_kg || 0, 1)} kg ({((shipment.load_weight_kg || 0)/1000).toFixed(3)} ton)</span>
-                              </div>
-                              <div className="grid grid-cols-2 items-center gap-4">
-                                <span className="text-sm text-slate-500">Emission Factor</span>
-                                <span className="text-sm font-medium">{formatNumber((shipment.co2_kg || 0) / ((shipment.distance_km || 1) * ((shipment.load_weight_kg || 1) / 1000) || 1), 3)} kg CO2e/t-km</span>
-                              </div>
-                              <div className="bg-slate-50 p-3 rounded-md mt-2 border border-slate-200">
-                                <span className="text-xs text-slate-500 block mb-1">Calculation Formula (Distance × Weight × Factor)</span>
-                                <code className="text-sm text-slate-800 font-mono">
-                                  {formatNumber(shipment.distance_km || 0, 1)} × {((shipment.load_weight_kg || 0)/1000).toFixed(3)} × {formatNumber((shipment.co2_kg || 0) / ((shipment.distance_km || 1) * ((shipment.load_weight_kg || 1) / 1000) || 1), 3)} = <strong className="text-green-600">{formatNumber(shipment.co2_kg || 0, 2)} kg CO2e</strong>
-                                </code>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <Link
+                          href={`/shipments/${shipment.id}`}
+                          className="h-8 px-3 mx-auto text-sm inline-flex items-center justify-center rounded-md text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                        >
+                          Explain
+                        </Link>
                       </TableCell>
                     </TableRow>
                   )

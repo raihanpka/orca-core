@@ -3,17 +3,30 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeftIcon, MapPinIcon, TruckIcon, CalendarIcon, PackageIcon, AlertCircleIcon, Loader2Icon, CheckCircle2Icon } from "lucide-react"
+import useSWR from "swr"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { API_BASE, API_TOKEN } from "@/lib/api"
+import { API_BASE, API_TOKEN, apiFetch } from "@/lib/api"
 
 function toTitleCase(str: string) {
   return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
+
+const FALLBACK_HUBS = [
+  { id: "hub_cakung",        name: "Hub Cakung (East Jakarta)" },
+  { id: "hub_kebon_jeruk",   name: "Hub Kebon Jeruk (West Jakarta)" },
+  { id: "hub_pasar_minggu",  name: "Hub Pasar Minggu (South Jakarta)" },
+  { id: "hub_kelapa_gading", name: "Hub Kelapa Gading (North Jakarta)" },
+  { id: "hub_cikarang",      name: "Hub Cikarang (Bekasi Regency)" },
+  { id: "hub_tangerang",     name: "Hub Tangerang (Airport Cargo)" },
+  { id: "hub_bekasi",        name: "Hub Bekasi (MM2100)" },
+  { id: "hub_bogor",         name: "Hub Bogor (Sentul)" },
+  { id: "hub_depok",         name: "Hub Depok (Cimanggis)" },
+]
 
 export default function NewShipmentPage() {
   const router = useRouter()
@@ -21,8 +34,11 @@ export default function NewShipmentPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { data: hubsResponse } = useSWR<{ hubs: Array<{ id: string; name: string }> }>("/hubs/", apiFetch)
+  const availableHubs = hubsResponse?.hubs ?? FALLBACK_HUBS
+
   const [formData, setFormData] = useState({
-    origin_hub_id: "hub_jakarta_selatan",
+    origin_hub_id: "hub_cakung",
     destination_zone: "",
     customer_lat: "-6.5960",
     customer_lng: "106.7970",
@@ -38,7 +54,7 @@ export default function NewShipmentPage() {
     d.setDate(d.getDate() + 2)
     // format as YYYY-MM-DDThh:mm
     const tzoffset = d.getTimezoneOffset() * 60000; //offset in milliseconds
-    const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
+    const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0,16);
     setFormData(prev => ({ ...prev, sla_deadline: localISOTime }))
   })
 
@@ -71,20 +87,26 @@ export default function NewShipmentPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${API_TOKEN}`
+          "Authorization": `Bearer ${API_TOKEN}`,
+          "X-API-Token": API_TOKEN,
         },
         body: JSON.stringify(payload)
       })
 
+      const body = await res.json()
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.detail || "Failed to create shipment")
+        throw new Error(body?.error ?? body?.detail ?? "Failed to create shipment")
+      }
+
+      const shipmentId = body?.data?.shipment_id ?? body?.shipment_id
+      if (!shipmentId) {
+        throw new Error("Shipment created but no ID returned")
       }
 
       setSuccess(true)
       setTimeout(() => {
-        router.push("/")
-      }, 2000)
+        router.push(`/shipments/${shipmentId}`)
+      }, 1200)
 
     } catch (err: any) {
       setError(err.message)
@@ -102,9 +124,9 @@ export default function NewShipmentPage() {
           Back to Dashboard
         </Button>
       </div>
-
+      
       <p className="text-muted-foreground">
-        Enter the shipping data manually. ORCA AI will automatically calculate the actual distance on the road (using GraphML Maps and Stadia API), predict delays, and calculate GLEC carbon emissions.
+        Masukkan data pengiriman manual. ORCA AI akan otomatis menghitung jarak asli di jalan raya (menggunakan GraphML Peta), memprediksi delay, dan menghitung emisi karbon GLEC.
       </p>
 
       {error && (
@@ -117,7 +139,7 @@ export default function NewShipmentPage() {
       {success && (
         <div className="p-4 bg-green-50 text-green-700 border border-green-200 rounded-md flex items-center gap-2">
           <CheckCircle2Icon className="w-5 h-5" />
-          <span>Shipment successfully created! Model is generating predictions. Redirecting...</span>
+          <span>Shipment created! Opening AI risk analysis...</span>
         </div>
       )}
 
@@ -129,53 +151,47 @@ export default function NewShipmentPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 gap-8">
-
+              
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><MapPinIcon className="w-4 h-4 text-blue-500" /> Origin Hub</Label>
-                <Select value={formData.origin_hub_id} onValueChange={(v) => v && setFormData({ ...formData, origin_hub_id: v })}>
-                  <SelectTrigger className="w-full">
+                <Select value={formData.origin_hub_id} onValueChange={(v) => v && setFormData({...formData, origin_hub_id: v})}>
+                  <SelectTrigger>
                     <SelectValue placeholder="Select Origin">
-                      {formData.origin_hub_id ? toTitleCase(formData.origin_hub_id.replace(/^hub_/, '')) : "Select Origin"}
+                      {availableHubs.find(h => h.id === formData.origin_hub_id)?.name ?? toTitleCase(formData.origin_hub_id)}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="w-full min-w-[var(--radix-select-trigger-width)]">
-                    <SelectItem value="hub_jakarta_selatan">Jakarta Selatan</SelectItem>
-                    <SelectItem value="hub_jakarta_utara">Jakarta Utara</SelectItem>
-                    <SelectItem value="hub_bogor">Bogor</SelectItem>
-                    <SelectItem value="hub_depok">Depok</SelectItem>
+                  <SelectContent>
+                    {availableHubs.map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><MapPinIcon className="w-4 h-4 text-green-500" /> Destination Label (Desa/Kecamatan)</Label>
-                <Input required placeholder="e.g. Dramaga, Bogor" value={formData.destination_zone} onChange={(e) => setFormData({ ...formData, destination_zone: e.target.value })} />
+                <Input required placeholder="e.g. Dramaga, Bogor" value={formData.destination_zone} onChange={(e) => setFormData({...formData, destination_zone: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <Label>Destination Latitude (LU/LS)</Label>
-                <Input required type="number" step="any" placeholder="-6.5960" value={formData.customer_lat} onChange={(e) => setFormData({ ...formData, customer_lat: e.target.value })} />
+                <Input required type="number" step="any" placeholder="-6.5960" value={formData.customer_lat} onChange={(e) => setFormData({...formData, customer_lat: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <Label>Destination Longitude (BT/BB)</Label>
-                <Input required type="number" step="any" placeholder="106.7970" value={formData.customer_lng} onChange={(e) => setFormData({ ...formData, customer_lng: e.target.value })} />
+                <Input required type="number" step="any" placeholder="106.7970" value={formData.customer_lng} onChange={(e) => setFormData({...formData, customer_lng: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><TruckIcon className="w-4 h-4 text-amber-500" /> Vehicle Type</Label>
-                <Select value={formData.vehicle_type} onValueChange={(v) => v && setFormData({ ...formData, vehicle_type: v })}>
+                <Select value={formData.vehicle_type} onValueChange={(v) => v && setFormData({...formData, vehicle_type: v})}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Vehicle">
-                      {formData.vehicle_type === "van_diesel" ? "Diesel Van (< 3.5t)" :
-                        formData.vehicle_type === "truck_lt35t" ? "Light Truck (< 3.5t)" :
-                          formData.vehicle_type === "truck_35_75t" ? "Medium Truck (3.5 - 7.5t)" :
-                            formData.vehicle_type === "truck_gt75t" ? "Heavy Truck (> 7.5t)" :
-                              formData.vehicle_type === "scooter_electric" ? "EV Scooter (Last Mile)" :
-                                toTitleCase(formData.vehicle_type)}
+                      {formData.vehicle_type ? toTitleCase(formData.vehicle_type) : "Select Vehicle"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="w-full min-w-[var(--radix-select-trigger-width)]">
+                  <SelectContent className="w-full">
                     <SelectItem value="van_diesel">Diesel Van (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_lt35t">Light Truck (&lt; 3.5t)</SelectItem>
                     <SelectItem value="truck_35_75t">Medium Truck (3.5 - 7.5t)</SelectItem>
@@ -187,17 +203,17 @@ export default function NewShipmentPage() {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-purple-500" /> SLA Deadline</Label>
-                <Input required type="datetime-local" value={formData.sla_deadline} onChange={(e) => setFormData({ ...formData, sla_deadline: e.target.value })} />
+                <Input required type="datetime-local" value={formData.sla_deadline} onChange={(e) => setFormData({...formData, sla_deadline: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><PackageIcon className="w-4 h-4 text-slate-500" /> Total Weight (kg)</Label>
-                <Input required type="number" min="0.1" step="0.1" value={formData.load_weight_kg} onChange={(e) => setFormData({ ...formData, load_weight_kg: e.target.value })} />
+                <Input required type="number" min="0.1" step="0.1" value={formData.load_weight_kg} onChange={(e) => setFormData({...formData, load_weight_kg: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <Label>Item Count (boxes/packages)</Label>
-                <Input required type="number" min="1" step="1" value={formData.item_count} onChange={(e) => setFormData({ ...formData, item_count: e.target.value })} />
+                <Input required type="number" min="1" step="1" value={formData.item_count} onChange={(e) => setFormData({...formData, item_count: e.target.value})} />
               </div>
 
             </div>
