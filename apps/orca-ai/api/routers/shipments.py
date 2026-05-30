@@ -141,7 +141,7 @@ async def _batch_fallback_predictions(request: Request, rows) -> dict[str, dict]
         prediction_records.append((shipment_id, payload, features))
         carbon_records.append((shipment_id, features["distance_km"], float(row["load_weight_kg"] or 1.0), row["vehicle_type"]))
         if risk_score >= 70.0:
-            alert_records.append((shipment_id, risk_score, "Dispatch via Alternate Route"))
+            alert_records.append((shipment_id, risk_score, _intervention(risk_score)))
 
     await bulk_insert_prediction_cache(request.app.state.db_pool, prediction_records)
     await bulk_insert_carbon_records(request.app.state.db_pool, carbon_records)
@@ -206,31 +206,34 @@ def _shap_contributions(explainer: object | None, model: object, label_encoder: 
         return _fallback_contributions(features)
 
 
-@router.post("/", response_model=dict)
+@router.post("/")
 async def create_shipment(req: CreateShipmentRequest, request: Request):
     now = datetime.now(timezone.utc)
-    
-    if req.sla_deadline.replace(tzinfo=timezone.utc) < now:
+
+    # Normalize deadline to UTC regardless of input timezone offset
+    sla_utc = req.sla_deadline.astimezone(timezone.utc) if req.sla_deadline.tzinfo else req.sla_deadline.replace(tzinfo=timezone.utc)
+    if sla_utc < now:
         raise HTTPException(status_code=400, detail="SLA deadline cannot be in the past")
-        
+
     hub_coords = HUB_COORDS.get(req.origin_hub_id)
     if not hub_coords:
-        raise HTTPException(status_code=400, detail="Invalid origin_hub_id")
-        
+        raise HTTPException(status_code=400, detail=f"Invalid origin_hub_id '{req.origin_hub_id}'. Valid IDs: {list(HUB_COORDS.keys())}")
+
+    if request.app.state.db_pool is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
     import asyncio
-    # Automatic distance calculation using graphml/pkl
     provider = request.app.state.road_provider
     distance_km = await asyncio.to_thread(provider.distance_km, hub_coords, (req.customer_lat, req.customer_lng))
-    
+
     shipment_id = uuid.uuid4()
     ext_id = req.external_id or f"MNL-{shipment_id.hex[:8]}"
-    
+
     async with request.app.state.db_pool.acquire() as conn:
-        # Insert shipment
         await conn.execute(
             """
             INSERT INTO shipments (
-              id, external_id, origin_hub_id, destination_zone, 
+              id, external_id, origin_hub_id, destination_zone,
               customer_lat, customer_lng, vehicle_type,
               load_weight_kg, item_count, sla_deadline, dispatched_at, status, distance_km
             )
@@ -238,25 +241,27 @@ async def create_shipment(req: CreateShipmentRequest, request: Request):
             """,
             shipment_id, ext_id, req.origin_hub_id,
             req.destination_zone, req.customer_lat, req.customer_lng, req.vehicle_type,
-            req.load_weight_kg, req.item_count, req.sla_deadline, now, distance_km
+            req.load_weight_kg, req.item_count, sla_utc, now, distance_km,
         )
-        
-    # Trigger prediction caching automatically for this manual shipment
+
+    # Trigger ML prediction immediately for this shipment
     row = {
         "id": shipment_id,
         "dispatched_at": now,
         "created_at": now,
-        "sla_deadline": req.sla_deadline,
+        "sla_deadline": sla_utc,
         "distance_km": distance_km,
         "origin_hub_id": req.origin_hub_id,
+        "customer_lat": req.customer_lat,   # needed for weather enrichment
+        "customer_lng": req.customer_lng,
         "item_count": req.item_count,
         "load_weight_kg": req.load_weight_kg,
         "vehicle_type": req.vehicle_type,
-        "delay_probability": None
+        "delay_probability": None,
     }
     await _batch_fallback_predictions(request, [row])
-    
-    return ok({"shipment_id": str(shipment_id), "distance_km": distance_km, "message": "Shipment created successfully"})
+
+    return ok({"shipment_id": str(shipment_id), "distance_km": round(distance_km, 3), "message": "Shipment created and ML prediction triggered"})
 
 
 @router.get("/active")

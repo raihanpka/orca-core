@@ -26,13 +26,16 @@ def _get_cache_key(payload: OptimizeRouteRequest) -> str:
     dump = json.dumps(fingerprint, sort_keys=True)
     return f"orca:cache:route:{hashlib.md5(dump.encode()).hexdigest()}"
 
+_DEFAULT_VEHICLES = ["van_diesel", "truck_lt35t", "truck_35_75t", "truck_gt75t", "scooter_electric"]
+
 @router.get("/vehicles")
 async def vehicles(request: Request):
     pool = request.app.state.db_pool
     if not pool:
-        return ok({"vehicles": []})
-    rows = await pool.fetch("SELECT vehicle_type FROM glec_emission_factors")
-    return ok({"vehicles": [row["vehicle_type"] for row in rows]})
+        return ok({"vehicles": _DEFAULT_VEHICLES})
+    rows = await pool.fetch("SELECT vehicle_type FROM glec_emission_factors ORDER BY vehicle_type")
+    vehicle_list = [row["vehicle_type"] for row in rows]
+    return ok({"vehicles": vehicle_list if vehicle_list else _DEFAULT_VEHICLES})
 
 
 @router.post("/route")
