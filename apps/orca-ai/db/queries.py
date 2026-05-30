@@ -157,6 +157,28 @@ async def bulk_insert_alerts(pool, records: list[tuple[str, float, str]]) -> Non
             shipment_id, risk_score, intervention
         )
 
+async def get_predictions_for_shipments(pool, shipment_ids: list[str]) -> dict[str, float]:
+    """Return latest delay_probability keyed by shipment_id for a batch of IDs.
+
+    Used by the route optimizer to feed real LightGBM probabilities into the
+    SLA-risk objective instead of a time-pressure proxy.
+    """
+    if pool is None or not shipment_ids:
+        return {}
+    rows = await pool.fetch(
+        """
+        SELECT DISTINCT ON (shipment_id)
+            shipment_id::text,
+            delay_probability
+        FROM shipment_predictions
+        WHERE shipment_id = ANY($1::uuid[])
+        ORDER BY shipment_id, time DESC
+        """,
+        shipment_ids,
+    )
+    return {row["shipment_id"]: float(row["delay_probability"]) for row in rows}
+
+
 async def get_hub_historical_rates(pool, hub_id: str) -> dict[str, float]:
     if pool is None:
         return {"delay_rate": 0.0, "avg_dwell_min": 120.0}
@@ -196,7 +218,7 @@ async def bulk_insert_carbon_records(pool, records: list[tuple[str, float, float
         SELECT
           $1::uuid,
           $2,
-          ROUND(($2::numeric * (1.0 + ($3::numeric / 1000.0)) * emission_factor)::numeric, 4),
+          ROUND(($2::numeric * ($3::numeric / 1000.0) * emission_factor)::numeric, 4),
           $4::varchar,
           ROUND(($3::numeric / 1000.0)::numeric, 4),
           emission_factor,
