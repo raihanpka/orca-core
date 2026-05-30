@@ -46,10 +46,9 @@ class Settings(BaseSettings):
     osmnx_enable_download: bool = False
 
     alert_risk_threshold: float = 70.0
-    # Amplifier for SLA risk formula. Calibrated models on imbalanced datasets
-    # produce probabilities capped around 0.20; amplifier=4 maps them to the
-    # full [0, 100] score range. For uncalibrated or balanced models, use 1.0.
-    sla_risk_amplifier: float = Field(default=4.0, ge=1.0, le=10.0)
+    # Amplifier for SLA risk formula. v2 uses CalibratedClassifierCV + slack dampening;
+    # keep at 1.0 unless re-tuning on production data. Legacy imbalanced models used 4.0.
+    sla_risk_amplifier: float = Field(default=1.0, ge=1.0, le=10.0)
     demo_mode: bool = False
     nsga2_population_size: int = Field(default=100, ge=10)
     nsga2_generations: int = Field(default=200, ge=10)

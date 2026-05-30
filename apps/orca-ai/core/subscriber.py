@@ -31,7 +31,12 @@ async def process_shipment_event(app: FastAPI, payload: dict):
     result = predictor.predict(payload)
     remaining_hours = float(payload.get("remaining_hours_to_sla", 0.0))
     delay_prob = result["delay_probability"]
-    risk_score, _ = compute_sla_risk(delay_prob, remaining_hours, amplifier=settings.sla_risk_amplifier)
+    risk_score, _ = compute_sla_risk(
+        delay_prob,
+        remaining_hours,
+        amplifier=settings.sla_risk_amplifier,
+        distance_km=float(payload.get("distance_km", 0) or 0) or None,
+    )
     predicted_delay_hrs = result["predicted_delay_hours"]
 
     ext_id = payload.get("external_id") or f"SIM-{str(shipment_id)[:8]}"
