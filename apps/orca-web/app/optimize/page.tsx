@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2Icon } from "lucide-react"
+import { Trash2Icon, ZapIcon, PlusCircleIcon, StarIcon } from "lucide-react"
 import { apiFetch, type RouteOptimizationResponse } from "@/lib/api"
 import { formatNumber } from "@/lib/utils"
 
@@ -277,7 +277,7 @@ export default function OptimizePage() {
                   <div className="h-1.5 w-1.5 bg-[#005A8C] rounded-full" />
                 </div>
                 <div className="flex-1">
-                  <span onClick={handleAddWaypoint} className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline">⊕ Add Waypoint</span>
+                  <span onClick={handleAddWaypoint} className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline flex items-center gap-1"><PlusCircleIcon className="h-4 w-4" /> Add Waypoint</span>
                 </div>
               </div>
             </div>
@@ -395,7 +395,7 @@ export default function OptimizePage() {
                             <TableCell className="pl-6 py-4">
                               <div className="flex flex-col">
                                 <span className="font-semibold text-slate-900 flex items-center gap-1.5">
-                                  {isFastest || isLowest ? <span className="text-[#005A8C]">★</span> : null}
+                                  {isFastest || isLowest ? <StarIcon className="h-3.5 w-3.5 text-[#005A8C] fill-[#005A8C]" /> : null}
                                   Option {String.fromCharCode(65 + index)}
                                 </span>
                                 <span className="text-xs text-slate-500 font-medium">
@@ -404,7 +404,7 @@ export default function OptimizePage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-center text-sm font-medium text-slate-700">{sol.travel_time_min}</TableCell>
-                            <TableCell className="text-center text-sm font-medium text-slate-700">{(sol.travel_time_min * 35 / 60 / 1.25).toFixed(1)}</TableCell>
+                            <TableCell className="text-center text-sm font-medium text-slate-700">{sol.distance_km?.toFixed(1) ?? "—"}</TableCell>
                             <TableCell className="text-center text-sm font-medium text-slate-700">Rp {formatNumber(sol.fuel_cost_idr, 0)}</TableCell>
                             <TableCell className="text-center text-sm font-medium text-slate-700">{sol.co2_kg.toFixed(1)}</TableCell>
                             <TableCell className="text-center">
@@ -427,15 +427,25 @@ export default function OptimizePage() {
                                   <div className="space-y-4 py-4">
                                     <div className="flex flex-col gap-1 text-sm border-b border-slate-100 pb-3">
                                       <span className="font-semibold text-slate-900">1. Route Permutation</span>
-                                      <span className="text-slate-600">The Traveling Salesperson sequence was brute-forced/mutated. This option covers {sol.stops_order?.length ?? waypoints.length} stops traversing {(sol.travel_time_min * 35 / 60 / 1.25).toFixed(1)} km.</span>
+                                      <span className="text-slate-600">
+                                        The stop sequence was {sol.stops_order?.length <= 5 ? "brute-forced (exact)" : "evolved via NSGA-II genetic mutations"}.
+                                        This option covers <strong>{sol.stops_order?.length ?? waypoints.length} stops</strong> traversing <strong>{sol.distance_km?.toFixed(1) ?? "—"} km</strong> (via {sol.distance_source ?? "haversine"}).
+                                      </span>
                                     </div>
                                     <div className="flex flex-col gap-1 text-sm border-b border-slate-100 pb-3">
-                                      <span className="font-semibold text-slate-900">2. ETA & Delay Risk (AI)</span>
-                                      <span className="text-slate-600">LightGBM predicted the delivery delay taking traffic multiplier and hub dwell times into account. Resulting SLA Risk: {sol.sla_risk_score}%.</span>
+                                      <span className="font-semibold text-slate-900">2. ETA &amp; SLA Risk (LightGBM)</span>
+                                      <span className="text-slate-600">
+                                        For each stop, ORCA fetches the cached <strong>LightGBM delay probability</strong> (trained on 96k+ shipments with weather, hub metrics, and Indonesia calendar features).
+                                        SLA risk is then computed as <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">delay_prob × urgency_weight × 100</code> where urgency scales with remaining hours to deadline.
+                                        Worst-case stop drives route risk. Result: <strong>{sol.sla_risk_score}%</strong>.
+                                      </span>
                                     </div>
                                     <div className="flex flex-col gap-1 text-sm pb-3">
-                                      <span className="font-semibold text-slate-900">3. Carbon Emissions (GLEC)</span>
-                                      <span className="text-slate-600">Formula: <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">Distance × (1.0 + Load(Ton)) × Emission_Factor</code>. Resulting in {sol.co2_kg.toFixed(2)} kg.</span>
+                                      <span className="font-semibold text-slate-900">3. Carbon Emissions (GLEC Framework v3.0)</span>
+                                      <span className="text-slate-600">
+                                        Formula: <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">CO₂ (kg) = Distance (km) × Load (ton) × Emission Factor (kg CO₂e / tonne-km)</code>.
+                                        Emission factor for <em>{toTitleCase(vehicleType)}</em> sourced from GLEC v3.0 table (DB). Result: <strong>{sol.co2_kg.toFixed(2)} kg CO₂e</strong>.
+                                      </span>
                                     </div>
                                   </div>
                                 </DialogContent>
@@ -451,7 +461,7 @@ export default function OptimizePage() {
                 <div className="min-h-[200px] flex items-center justify-center p-8 text-center">
                   <div className="max-w-[280px]">
                     <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <span className="text-slate-400 text-xl">⚡</span>
+                      <ZapIcon className="h-6 w-6 text-slate-400" />
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900 mb-1">No Routes Generated</h3>
                     <p className="text-xs text-slate-500">Run optimization to see Pareto front route alternatives.</p>
