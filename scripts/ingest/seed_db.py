@@ -101,6 +101,9 @@ async def seed_data(seed_count: int = 30, is_cron: bool = False) -> None:
     await conn.close()
     label = "Data Cron" if is_cron else "Seed Data Awal"
     print(f"✅ Berhasil menyisipkan {len(records)} {label} dengan worker!")
+    for rec in records:
+        print(f"Generated Tracking ID: {rec[1]} (Shipment ID: {rec[0]})")
+    return records
 
 if __name__ == "__main__":
     asyncio.run(seed_data())

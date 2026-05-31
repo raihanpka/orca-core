@@ -107,7 +107,7 @@ export default function OptimizePage() {
     const origin = availableHubs.find(h => h.id === originHubId);
     const points: Point[] = [];
     if (origin) {
-      points.push({ label: `Origin (${origin.name})`, coordinates: [origin.lng, origin.lat], tone: "default" })
+      points.push({ label: `Origin - ${origin.name}`, coordinates: [origin.lng, origin.lat], tone: "default" })
     }
     waypoints.forEach((wp, i) => {
       points.push({ label: `Stop ${i+1}`, coordinates: [wp.lng, wp.lat], tone: i === 0 ? "high" : i === 1 ? "medium" : "low" })

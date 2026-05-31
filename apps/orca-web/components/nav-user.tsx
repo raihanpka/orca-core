@@ -36,12 +36,13 @@ export function NavUser({
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        {/* <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
             }
-          >
+          > */}
+          <SidebarMenuButton size="lg" className="cursor-default hover:bg-transparent active:bg-transparent hover:text-inherit">
             <Avatar className="size-8 rounded-lg grayscale">
               <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className="rounded-lg"><UserIcon className="size-4" /></AvatarFallback>
@@ -52,8 +53,9 @@ export function NavUser({
                 {user.email}
               </span>
             </div>
-            <EllipsisVerticalIcon className="ml-auto size-4" />
-          </DropdownMenuTrigger>
+            {/* <EllipsisVerticalIcon className="ml-auto size-4" /> */}
+          </SidebarMenuButton>
+          {/* </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-56"
             side={isMobile ? "bottom" : "right"}
@@ -91,7 +93,7 @@ export function NavUser({
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu> */}
       </SidebarMenuItem>
     </SidebarMenu>
   )

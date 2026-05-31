@@ -66,7 +66,8 @@ async def carbon_analytics(
             c.co2_kg,
             s.distance_km,
             c.calculated_at,
-            (SELECT sla_risk_score FROM shipment_predictions sp WHERE sp.shipment_id = s.id ORDER BY time DESC LIMIT 1) as sla_risk_score
+            s.sla_deadline,
+            (SELECT delay_probability FROM shipment_predictions sp WHERE sp.shipment_id = s.id ORDER BY time DESC LIMIT 1) as delay_probability
         FROM shipments s
         JOIN carbon_records c ON c.shipment_id = s.id
         WHERE c.calculated_at::date BETWEEN $1 AND $2
@@ -81,6 +82,28 @@ async def carbon_analytics(
     avg = total / count if count else 0.0
     baseline = total * 1.126 if total else 0.0
     vs_baseline = ((total - baseline) / baseline * 100) if baseline else 0.0
+    from core.config import get_settings
+    from api.routers.shipments import _live_sla_risk
+    
+    amplifier = get_settings().sla_risk_amplifier
+    
+    processed_routes = []
+    for row in recent_routes:
+        delay_prob = float(row["delay_probability"]) if row["delay_probability"] is not None else None
+        risk = _live_sla_risk(row, delay_prob, amplifier)
+        processed_routes.append({
+            "shipment_id": str(row["shipment_id"]),
+            "external_id": row["external_id"] or "",
+            "origin": row["origin"],
+            "destination": row["destination"],
+            "vehicle_type": row["vehicle_type"],
+            "co2_kg": float(row["co2_kg"]),
+            "distance_km": float(row["distance_km"]),
+            "load_weight_kg": float(row["load_weight_kg"] or 0),
+            "calculated_at": row["calculated_at"].isoformat() if row["calculated_at"] else None,
+            "sla_risk_score": risk
+        })
+
     return ok(
         {
             "total_co2_kg": round(total, 2),
@@ -94,21 +117,7 @@ async def carbon_analytics(
                 {"vehicle_type": row["vehicle_type"], "co2_kg": float(row["co2_kg"]), "shipment_count": row["shipment_count"]}
                 for row in by_vehicle
             ],
-            "recent_routes": [
-                {
-                    "shipment_id": str(row["shipment_id"]),
-                    "external_id": row["external_id"] or "",
-                    "origin": row["origin"],
-                    "destination": row["destination"],
-                    "vehicle_type": row["vehicle_type"],
-                    "co2_kg": float(row["co2_kg"]),
-                    "distance_km": float(row["distance_km"]),
-                    "load_weight_kg": float(row["load_weight_kg"] or 0),
-                    "calculated_at": row["calculated_at"].isoformat() if row["calculated_at"] else None,
-                    "sla_risk_score": float(row["sla_risk_score"]) if row["sla_risk_score"] is not None else None
-                }
-                for row in recent_routes
-            ],
+            "recent_routes": processed_routes,
             "glec_version": "3.0",
         }
     )

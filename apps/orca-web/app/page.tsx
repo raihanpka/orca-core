@@ -316,8 +316,8 @@ function CarbonFootprintTab() {
                           <div className="flex items-center text-slate-800 text-sm gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin" /> Scoring...</div>
                         )}
                       </TableCell>
-                      <TableCell className="font-semibold text-slate-900 pr-6">
-                        {route.co2_kg ? `${formatNumber(route.co2_kg, 2)} kg` : '-'}
+                      <TableCell className="font-semibold text-slate-900 whitespace-nowrap">
+                        {route.co2_kg ? `${route.co2_kg.toFixed(2)} kg` : '-'}
                       </TableCell>
                       <TableCell className="text-center">
                         <Link
