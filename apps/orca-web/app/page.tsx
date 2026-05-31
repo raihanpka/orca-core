@@ -23,7 +23,7 @@ function toTitleCase(str: string) {
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { InfoIcon } from "lucide-react"
+import { InfoIcon, Loader2Icon } from "lucide-react"
 
 const dailyChartConfig = {
   co2_kg: {
@@ -55,11 +55,14 @@ export default function AnalyticsPage() {
 }
 
 function CarbonFootprintTab() {
-  const {data = { by_day: [], by_vehicle_type: [], recent_routes: [], total_co2_kg: 0, avg_co2_per_shipment_kg: 0, vs_baseline_pct: 0, glec_version: "v3.0" }} = useSWR<CarbonAnalytics>("/analytics/carbon", apiFetch, {
+  const [currentPage, setCurrentPage] = useState(1)
+  const [trendFilter, setTrendFilter] = useState(3)
+
+  const dateFrom = new Date(Date.now() - trendFilter * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const {data = { by_day: [], by_vehicle_type: [], recent_routes: [], total_co2_kg: 0, avg_co2_per_shipment_kg: 0, vs_baseline_pct: 0, glec_version: "v3.0" }} = useSWR<CarbonAnalytics>(`/analytics/carbon?date_from=${dateFrom}`, apiFetch, {
     refreshInterval: 30000,
   })
-
-  const [currentPage, setCurrentPage] = useState(1)
 
   function exportCsv() {
     const rows = [
@@ -82,31 +85,55 @@ function CarbonFootprintTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 md:grid-cols-2">
-        <Metric title="Total CO2" value={`${formatNumber(data.total_co2_kg, 1)} kg`} helper={`GLEC ${data.glec_version}`} />
-        <Metric title="Average CO2 per Shipment" value={`${formatNumber(data.avg_co2_per_shipment_kg, 1)} kg`} helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." />
+        <Metric 
+          title="Total CO2" 
+          value={`${formatNumber(data.total_co2_kg, 1)} kg`} 
+          helper={`GLEC ${data.glec_version}`} 
+          filterNode={<TrendFilterGroup value={trendFilter} onChange={setTrendFilter} />}
+        />
+        <Metric 
+          title="Average CO2 per Shipment" 
+          value={`${formatNumber(data.avg_co2_per_shipment_kg, 1)} kg`} 
+          helper="Estimated from distance, load, and vehicle emission factor based on GLEC framework." 
+          filterNode={<TrendFilterGroup value={trendFilter} onChange={setTrendFilter} />}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="shadow-sm border-slate-200 flex flex-col">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-lg">Daily CO2 Trend</CardTitle>
+            <TrendFilterGroup value={trendFilter} onChange={setTrendFilter} />
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
-            <ChartContainer config={dailyChartConfig} className="h-[250px] w-full">
-              <BarChart data={data.by_day}>
-                <CartesianGrid vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} stroke="#94A3B8" />
-                <YAxis fontSize={12} stroke="#94A3B8" tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                <Bar dataKey="co2_kg" fill="#334155" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
+            {(() => {
+              const filteredTrendData = data.by_day;
+              const maxVal = Math.max(...filteredTrendData.map(d => d.co2_kg), 1);
+              return (
+                <ChartContainer config={dailyChartConfig} className="h-[250px] w-full">
+                  <BarChart data={filteredTrendData}>
+                    <CartesianGrid vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} stroke="#94A3B8" />
+                    <YAxis fontSize={12} stroke="#94A3B8" tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                    <Bar dataKey="co2_kg" radius={[4, 4, 0, 0]}>
+                      {filteredTrendData.map((entry, index) => {
+                        const intensity = entry.co2_kg / maxVal;
+                        const lightness = 85 - (intensity * 60);
+                        return <Cell key={`cell-${index}`} fill={`hsl(215, 25%, ${lightness}%)`} />
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
 
         <Card className="shadow-sm border-slate-200 flex flex-col">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-lg">Vehicle Breakdown</CardTitle>
+            <TrendFilterGroup value={trendFilter} onChange={setTrendFilter} />
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
             {data.by_vehicle_type.length > 0 ? (
@@ -124,7 +151,7 @@ function CarbonFootprintTab() {
                       stroke="none"
                     >
                       {data.by_vehicle_type.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={['#475569', '#1e293b', '#94a3b8', '#cbd5e1'][index % 4]} />
+                        <Cell key={`cell-${index}`} fill={['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'][index % 5]} />
                       ))}
                       <Label
                         content={({ viewBox }) => {
@@ -159,7 +186,7 @@ function CarbonFootprintTab() {
                             className="h-full rounded-full" 
                             style={{
                               width: `${percent}%`,
-                              backgroundColor: i === 0 ? '#475569' : i === 1 ? '#1e293b' : '#94a3b8'
+                              backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'][i % 5]
                             }} 
                           />
                         </div>
@@ -189,13 +216,39 @@ function CarbonFootprintTab() {
               <TableRow key={item.vehicle_type} className="border-slate-200">
                 <TableCell className="font-medium text-slate-900 pl-6">{toTitleCase(item.vehicle_type)}</TableCell>
                 <TableCell>{formatNumber(item.shipment_count, 0)}</TableCell>
-                <TableCell className="pr-6">{formatNumber(item.co2_kg, 3)} kg</TableCell>
+                <TableCell className="pr-6">{formatNumber(item.co2_kg, 2)} kg</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        <div className="px-4 py-2 bg-slate-50/50 border-t border-slate-200 text-xs italic text-slate-500">
-          Note: CO2 is estimated from distance, load, and vehicle emission factor based on GLEC framework.
+        <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-xs text-slate-500">
+          Note: CO2 is estimated from distance, load, and vehicle emission factor based on{' '}
+          <Dialog>
+            <DialogTrigger className="text-blue-600 hover:underline cursor-pointer font-medium underline-offset-2">GLEC framework</DialogTrigger>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>GLEC Framework Emission Factors</DialogTitle>
+                <DialogDescription>Standardized emission factors utilized for route CO2 estimation calculations.</DialogDescription>
+              </DialogHeader>
+              <div className="rounded-md border border-slate-200 overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-slate-50/50">
+                    <TableRow>
+                      <TableHead className="font-semibold text-slate-600">Vehicle Type</TableHead>
+                      <TableHead className="font-semibold text-slate-600">Factor (kg CO2e / t-km)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow><TableCell className="capitalize font-medium text-slate-700">Scooter Electric</TableCell><TableCell>0.000</TableCell></TableRow>
+                    <TableRow><TableCell className="capitalize font-medium text-slate-700">Van Diesel</TableCell><TableCell>0.200</TableCell></TableRow>
+                    <TableRow><TableCell className="capitalize font-medium text-slate-700">Truck &lt; 3.5t</TableCell><TableCell>0.150</TableCell></TableRow>
+                    <TableRow><TableCell className="capitalize font-medium text-slate-700">Truck 3.5 - 7.5t</TableCell><TableCell>0.110</TableCell></TableRow>
+                    <TableRow><TableCell className="capitalize font-medium text-slate-700">Truck &gt; 7.5t</TableCell><TableCell>0.080</TableCell></TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </DialogContent>
+          </Dialog>.
         </div>
       </Card>
 
@@ -210,8 +263,9 @@ function CarbonFootprintTab() {
                 <TableHead className="font-semibold text-slate-500 uppercase">Origin</TableHead>
                 <TableHead className="font-semibold text-slate-500 uppercase">Destination</TableHead>
                 <TableHead className="font-semibold text-slate-500 uppercase">Vehicle</TableHead>
-                <TableHead className="font-semibold text-slate-500 uppercase">Distance</TableHead>
-                <TableHead className="font-semibold text-slate-500 uppercase">Carbon (CO2)</TableHead>
+                <TableHead className="font-semibold text-slate-500 uppercase">Dist & Load</TableHead>
+                <TableHead className="font-semibold text-slate-500 uppercase">Risk Level</TableHead>
+                <TableHead className="font-semibold text-slate-500 uppercase pr-6">Total CO2</TableHead>
                 <TableHead className="font-semibold text-slate-500 uppercase text-center w-[100px]">Explain</TableHead>
               </TableRow>
             </TableHeader>
@@ -226,7 +280,7 @@ function CarbonFootprintTab() {
                 if (paginatedRoutes.length === 0) {
                   return (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={8} className="h-24 text-center text-slate-500">
                         No recent routes available.
                       </TableCell>
                     </TableRow>
@@ -234,15 +288,37 @@ function CarbonFootprintTab() {
                 }
 
                 return paginatedRoutes.map((route) => {
-                  const emissionFactor = route.co2_kg / (route.distance_km * (route.load_weight_kg / 1000) || 1)
+                  const isHighRisk = (route.sla_risk_score ?? 0) > 70;
+                  const destDisplay = isNaN(Number(route.destination)) 
+                    ? toTitleCase(route.destination || "Unknown") 
+                    : `Zone ${route.destination}`;
+
                   return (
                     <TableRow key={route.shipment_id} className="border-slate-200 hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-medium text-slate-900 pl-6">{route.external_id || route.shipment_id.slice(0,8)}</TableCell>
+                      <TableCell className="pl-6">
+                        <span className="font-medium text-slate-900">
+                          {route.external_id ?? route.shipment_id.slice(0, 8)}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-slate-600 capitalize">{route.origin.replace(/^hub_/, '').replace(/_/g, ' ')}</TableCell>
-                      <TableCell className="text-slate-600">{route.destination}</TableCell>
+                      <TableCell className="text-slate-600">{destDisplay}</TableCell>
                       <TableCell className="text-slate-600 capitalize">{toTitleCase(route.vehicle_type)}</TableCell>
-                      <TableCell className="text-slate-600">{formatNumber(route.distance_km, 1)} km</TableCell>
-                      <TableCell className="font-semibold text-slate-900">{formatNumber(route.co2_kg, 3)} kg</TableCell>
+                      <TableCell className="text-slate-600 text-xs">
+                        <div>{route.distance_km ? `${formatNumber(route.distance_km, 1)} km` : '-'}</div>
+                        <div className="text-slate-400">{route.load_weight_kg ? `${formatNumber(route.load_weight_kg, 1)} kg` : '-'}</div>
+                      </TableCell>
+                      <TableCell>
+                        {route.sla_risk_score !== null && route.sla_risk_score !== undefined ? (
+                          <span className={`px-2 py-0.5 rounded-sm text-xs font-medium border ${isHighRisk ? 'bg-slate-200 border-slate-400 text-slate-700' : 'bg-transparent border-dashed border-slate-300 text-slate-400'}`}>
+                            {isHighRisk ? 'High' : 'Low'}
+                          </span>
+                        ) : (
+                          <div className="flex items-center text-slate-800 text-sm gap-1.5"><Loader2Icon className="h-3 w-3 animate-spin" /> Scoring...</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-semibold text-slate-900 pr-6">
+                        {route.co2_kg ? `${formatNumber(route.co2_kg, 2)} kg` : '-'}
+                      </TableCell>
                       <TableCell className="text-center">
                         <Link
                           href={`/shipments/${route.shipment_id}`}
@@ -288,18 +364,31 @@ function CarbonFootprintTab() {
 }
 
 
-function Metric({title, value, helper}: {title: string; value: string; helper?: string}) {
+function Metric({title, value, helper, filterNode}: {title: string; value: string; helper?: string, filterNode?: React.ReactNode}) {
   return (
     <Card className="shadow-sm border-slate-200 rounded-sm">
-      <CardHeader className="pb-1 pt-4 px-5">
+      <CardHeader className="pb-1 pt-4 px-5 flex flex-row items-center justify-between space-y-0">
         <CardDescription className="text-xs font-bold text-slate-500 tracking-wider uppercase">{title}</CardDescription>
-        <CardTitle className="text-3xl font-bold pt-2">{value}</CardTitle>
+        {filterNode && <div>{filterNode}</div>}
       </CardHeader>
+      <div className="px-5">
+        <CardTitle className="text-3xl font-bold pt-2">{value}</CardTitle>
+      </div>
       {helper && (
-        <CardContent className="pb-4 px-5 pt-0">
+        <CardContent className="pb-4 px-5 pt-0 mt-4">
           <div className="text-sm text-slate-800">{helper}</div>
         </CardContent>
       )}
     </Card>
+  )
+}
+
+function TrendFilterGroup({value, onChange}: {value: number, onChange: (v: number) => void}) {
+  return (
+    <div className="flex items-center gap-1 bg-slate-100/50 p-1 rounded-md">
+      <button onClick={() => onChange(3)} className={`px-2 py-1 text-xs font-medium rounded-sm transition-colors ${value === 3 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>3D</button>
+      <button onClick={() => onChange(7)} className={`px-2 py-1 text-xs font-medium rounded-sm transition-colors ${value === 7 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>7D</button>
+      <button onClick={() => onChange(30)} className={`px-2 py-1 text-xs font-medium rounded-sm transition-colors ${value === 30 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>1M</button>
+    </div>
   )
 }

@@ -7,6 +7,7 @@ import useSWR from "swr"
 import { jakartaRoutePoints, type Point } from "@/lib/mock-data"
 import dynamic from "next/dynamic"
 const RouteMap = dynamic(() => import("@/components/maps/route-map").then(mod => mod.RouteMap), { ssr: false, loading: () => <div className="h-full min-h-[420px] w-full bg-muted animate-pulse rounded-lg" /> })
+const LocationPickerMap = dynamic(() => import("@/components/maps/location-picker-map").then(mod => mod.LocationPickerMap), { ssr: false, loading: () => <div className="h-[300px] w-full bg-muted animate-pulse rounded-lg" /> })
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -21,7 +22,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2Icon } from "lucide-react"
+import { Trash2Icon, MapPinIcon, InfoIcon } from "lucide-react"
 import { apiFetch, type RouteOptimizationResponse } from "@/lib/api"
 import { formatNumber } from "@/lib/utils"
 
@@ -58,6 +59,10 @@ export default function OptimizePage() {
   const [focusPoint, setFocusPoint] = useState<[number, number] | null>(null)
   const [waypoints, setWaypoints] = useState<Array<{id: string, lat: number, lng: number, weight: number}>>([])
   const [selectedShipmentId, setSelectedShipmentId] = useState<string>("")
+  const [inputMode, setInputMode] = useState<"manual" | "at_risk">("manual")
+  const [pickingWaypointId, setPickingWaypointId] = useState<string | null>(null)
+  const [tempCoords, setTempCoords] = useState<[number, number] | null>(null)
+  const [infoOpen, setInfoOpen] = useState(false)
   
   const atRiskShipments = useMemo(() => {
     return (shipmentsData?.shipments || []).filter(s => s.sla_risk_score >= 70)
@@ -78,11 +83,12 @@ export default function OptimizePage() {
 
   const handleUpdateWaypoint = (id: string, field: "lat"|"lng"|"weight"|"hub", value: number|string) => {
     setResult(null) // Clear old route when editing points
-    setWaypoints(waypoints.map(w => {
+    setWaypoints(prevWaypoints => prevWaypoints.map(w => {
       if (w.id === id) {
         if (field === "hub") {
            const hub = availableHubs.find(h => h.id === value);
            if (hub) {
+             // Avoid side effects inside state updater in strict mode, but it's safe enough here since it's an event handler.
              setFocusPoint([hub.lng, hub.lat])
              return { ...w, lat: hub.lat, lng: hub.lng };
            }
@@ -188,37 +194,81 @@ export default function OptimizePage() {
             <CardTitle className="text-lg">Route Configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
-            {atRiskShipments.length > 0 && (
-              <div className="flex flex-col gap-1.5 p-3 bg-red-50/50 border border-red-100 rounded-md">
-                <Label className="text-xs font-semibold text-red-900">Load At-Risk Shipment</Label>
-                <Select value={selectedShipmentId} onValueChange={(val: string | null) => {
-                  setSelectedShipmentId(val || "")
-                  const shipment = atRiskShipments.find(s => s.id === val)
-                  if (shipment) {
-                    setOriginHubId(shipment.origin_hub_id)
-                    setVehicleType(shipment.vehicle_type)
-                    setWaypoints([{
-                      id: crypto.randomUUID(),
-                      lat: -6.200, // Dummy fallback, ideally geocoded
-                      lng: 106.816,
-                      weight: shipment.load_weight_kg || 10
-                    }])
-                    setResult(null)
-                  }
-                }}>
-                  <SelectTrigger className="h-9 text-sm bg-white border-red-200">
-                    <SelectValue placeholder="Select At-Risk Shipment to optimize..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {atRiskShipments.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.external_id ?? s.id.slice(0, 8)} - Risk: {s.sla_risk_score.toFixed(0)}%
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-semibold text-slate-700">Input Mode</Label>
+                <button type="button" onClick={() => setInfoOpen(true)} className="text-slate-400 hover:text-blue-500 transition-colors">
+                  <InfoIcon className="w-4 h-4" />
+                </button>
               </div>
-            )}
+              <Select value={inputMode} onValueChange={(val: string | null) => {
+                const mode = (val || "manual") as "manual" | "at_risk";
+                setInputMode(mode)
+                if (mode === "manual") {
+                  setSelectedShipmentId("")
+                  setWaypoints([])
+                  setResult(null)
+                }
+              }}>
+                <SelectTrigger className="h-9 text-sm bg-white w-full">
+                  <SelectValue placeholder="Select Mode">
+                    {inputMode === "manual" ? "Manual Route" : "Load At-Risk Shipment"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  <SelectItem value="manual">Manual Route</SelectItem>
+                  <SelectItem value="at_risk" disabled={atRiskShipments.length === 0}>
+                    Load At-Risk Shipment {atRiskShipments.length > 0 ? `(${atRiskShipments.length})` : ""}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {inputMode === "at_risk" && (
+                <div className="mt-1">
+                  <Select value={selectedShipmentId} onValueChange={(val: string | null) => {
+                    setSelectedShipmentId(val || "")
+                    const shipment = atRiskShipments.find(s => s.id === val)
+                    if (shipment) {
+                      setOriginHubId(shipment.origin_hub_id)
+                      setVehicleType(shipment.vehicle_type)
+                      setWaypoints([{
+                        id: crypto.randomUUID(),
+                        lat: -6.200, 
+                        lng: 106.816,
+                        weight: shipment.load_weight_kg || 10
+                      }])
+                      setResult(null)
+                    }
+                  }}>
+                    <SelectTrigger className="min-h-[3rem] h-auto py-2 text-sm bg-white border-blue-200 w-full [&_[data-slot=select-value]]:flex-col [&_[data-slot=select-value]]:items-start [&_[data-slot=select-value]]:gap-0 [&_[data-slot=select-value]]:line-clamp-none whitespace-normal text-left">
+                      <SelectValue placeholder="Select At-Risk Shipment to optimize...">
+                        {selectedShipmentId && atRiskShipments.find(s => s.id === selectedShipmentId) ? (() => {
+                          const s = atRiskShipments.find(s => s.id === selectedShipmentId)!;
+                          return (
+                            <>
+                              <span className="font-medium leading-none">{s.external_id ?? s.id.slice(0, 8)}</span>
+                              <span className="text-[10px] text-slate-500 font-normal mt-1 leading-none">Risk: {s.sla_risk_score.toFixed(0)}%</span>
+                            </>
+                          )
+                        })() : undefined}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false}>
+                      {atRiskShipments.map(s => (
+                        <SelectItem key={s.id} value={s.id} className="items-start py-2">
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">{s.external_id ?? s.id.slice(0, 8)}</span>
+                            <span className="text-[10px] text-slate-500 mt-0.5">Risk: {s.sla_risk_score.toFixed(0)}% • SLA Deadline: {new Date(s.sla_deadline).toLocaleString()}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <hr className="border-slate-200" />
 
             {/* Timeline Input */}
             <div className="relative ml-2 space-y-6 before:absolute before:inset-0 before:ml-[7px] before:w-0.5 before:-translate-x-px before:bg-slate-200">
@@ -226,18 +276,18 @@ export default function OptimizePage() {
                 <div className="h-4 w-4 mt-2.5 rounded-full bg-[#005A8C] border-[3px] border-white shadow-sm ring-1 ring-slate-200 z-10" />
                 <div className="flex-1 space-y-1">
                   <Label className="text-sm text-slate-900">Origin</Label>
-                  <Select value={originHubId} onValueChange={(val) => {
+                  <Select disabled={inputMode === "at_risk"} value={originHubId} onValueChange={(val) => {
                     setResult(null)
                     setOriginHubId(val || "hub_jakarta_selatan")
                     const hub = availableHubs.find(h => h.id === val)
                     if (hub) setFocusPoint([hub.lng, hub.lat])
                   }}>
-                  <SelectTrigger className="text-sm h-10 bg-white">
+                  <SelectTrigger className={`text-sm h-10 bg-white ${inputMode === "at_risk" ? "opacity-60 cursor-not-allowed bg-slate-50" : ""}`}>
                     <SelectValue placeholder="Select Origin">
                       {toTitleCase(availableHubs.find((h) => h.id === originHubId)?.name.replace(/^Hub /i, '') || originHubId.replace(/^hub_/, ''))}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     {availableHubs.map((h) => (
                       <SelectItem key={h.id} value={h.id}>{toTitleCase(h.name.replace(/^Hub /i, ''))}</SelectItem>
                     ))}
@@ -256,42 +306,52 @@ export default function OptimizePage() {
                       <Label className="text-sm font-semibold text-slate-800">
                         Stop {index + 1} {matchedHub ? <span className="font-medium text-slate-500 ml-1">{toTitleCase(matchedHub.name.replace(/^Hub /i, ''))}</span> : null}
                       </Label>
-                      {waypoints.length > 1 && (
+                      {waypoints.length > 1 && inputMode === "manual" && (
                         <button onClick={() => handleRemoveWaypoint(wp.id)} className="text-slate-400 hover:text-red-500 transition-colors">
                           <Trash2Icon className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
                     <div className="flex flex-col gap-2 w-full mt-2">
-                      <Select value={matchedHub?.id || ""} onValueChange={(val: string | null) => {
+                      <Select disabled={inputMode === "at_risk"} value={matchedHub?.id || ""} onValueChange={(val: string | null) => {
                         if (!val) return
                         handleUpdateWaypoint(wp.id, "hub", val)
                         const hub = availableHubs.find(h => h.id === val)
                         if (hub) setFocusPoint([hub.lng, hub.lat])
                       }}>
-                        <SelectTrigger className="h-10 text-sm bg-white w-full">
+                        <SelectTrigger className={`h-10 text-sm bg-white w-full ${inputMode === "at_risk" ? "opacity-60 cursor-not-allowed bg-slate-50" : ""}`}>
                           <SelectValue placeholder="Quick Pick Hub...">
                             {matchedHub ? toTitleCase(matchedHub.name.replace(/^Hub /i, '')) : "Quick Pick Hub..."}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="w-[--radix-select-trigger-width]">
+                        <SelectContent alignItemWithTrigger={false}>
                           {availableHubs.map(h => <SelectItem key={h.id} value={h.id}>{toTitleCase(h.name.replace(/^Hub /i, ''))}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <div className="grid grid-cols-[1fr_1fr_5rem] sm:grid-cols-[1fr_1fr_7rem] gap-2">
-                        <Input type="number" step="0.001" value={wp.lat} onChange={e => {
-                          const v = parseFloat(e.target.value) || 0
-                          handleUpdateWaypoint(wp.id, 'lat', v)
-                          setFocusPoint([wp.lng, v])
-                        }} className="h-8 bg-white text-xs w-full px-2" placeholder="Lat" />
-                        <Input type="number" step="0.001" value={wp.lng} onChange={e => {
-                          const v = parseFloat(e.target.value) || 0
-                          handleUpdateWaypoint(wp.id, 'lng', v)
-                          setFocusPoint([v, wp.lat])
-                        }} className="h-8 bg-white text-xs w-full px-2" placeholder="Lng" />
-                        <div className="relative w-full">
+                      <div className="flex gap-2 items-center w-full">
+                        {inputMode === "manual" ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-8 flex-1 bg-white text-xs"
+                            onClick={() => {
+                              setPickingWaypointId(wp.id)
+                              setTempCoords([wp.lat, wp.lng])
+                            }}
+                          >
+                            <MapPinIcon className="w-3 h-3 mr-1" />
+                            Pick on Map ({wp.lat.toFixed(4)}, {wp.lng.toFixed(4)})
+                          </Button>
+                        ) : (
+                          <div className="h-8 flex-1 flex items-center px-3 border rounded-md bg-slate-50 text-slate-500 text-xs shadow-sm cursor-not-allowed">
+                            <MapPinIcon className="w-3 h-3 mr-1" />
+                            Coordinate: {wp.lat.toFixed(4)}, {wp.lng.toFixed(4)}
+                          </div>
+                        )}
+                        <div className="relative w-20 shrink-0">
                           <Input 
-                            type="number" 
+                            type="number"
+                            disabled={inputMode === "at_risk"}
                             value={wp.weight === 0 ? "" : wp.weight} 
                             onChange={e => {
                               const val = e.target.value;
@@ -299,7 +359,7 @@ export default function OptimizePage() {
                               handleUpdateWaypoint(wp.id, 'weight', val === "" ? 0 : parseFloat(val))
                             }} 
                             onFocus={e => e.target.select()}
-                            className="h-8 bg-white text-xs text-left pr-6 w-full" 
+                            className={`h-8 bg-white text-xs text-left pr-6 w-full ${inputMode === "at_risk" ? "opacity-60 cursor-not-allowed bg-slate-50" : ""}`}
                             placeholder="0" 
                           />
                           <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none">kg</span>
@@ -310,26 +370,28 @@ export default function OptimizePage() {
                 </div>
               )})}
 
-              <div className="relative flex items-center gap-4">
-                <div className="h-4 w-4 rounded-full bg-white border-2 border-[#005A8C] flex items-center justify-center z-10">
-                  <div className="h-1.5 w-1.5 bg-[#005A8C] rounded-full" />
+              {inputMode === "manual" && (
+                <div className="relative flex items-center gap-4">
+                  <div className="h-4 w-4 rounded-full bg-white border-2 border-[#005A8C] flex items-center justify-center z-10">
+                    <div className="h-1.5 w-1.5 bg-[#005A8C] rounded-full" />
+                  </div>
+                  <div className="flex-1">
+                    <span onClick={handleAddWaypoint} className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline">⊕ Add Waypoint</span>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <span onClick={handleAddWaypoint} className="text-sm text-[#005A8C] font-medium cursor-pointer hover:underline">⊕ Add Waypoint</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="space-y-3">
                   <Label>Vehicle Type</Label>
                   <Select value={vehicleType} onValueChange={(val) => setVehicleType(val || "van_diesel")}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full text-left bg-white">
                       <SelectValue placeholder="Select Vehicle">
                         {toTitleCase(vehicleType)}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       {availableVehicles.map(v => (
                         <SelectItem key={v} value={v}>{toTitleCase(v)}</SelectItem>
                       ))}
@@ -339,12 +401,12 @@ export default function OptimizePage() {
               <div className="space-y-3">
                   <Label>Routing Engine</Label>
                   <Select value={routingEngine} onValueChange={(val) => setRoutingEngine(val || "osmnx")}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full text-left bg-white">
                       <SelectValue placeholder="Select Engine">
                         {routingEngine === "stadia" ? "Stadia Maps API" : "Local (OSMnx)"}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       <SelectItem value="osmnx">Local (OSMnx)</SelectItem>
                       <SelectItem value="stadia">Stadia Maps API</SelectItem>
                     </SelectContent>
@@ -502,6 +564,55 @@ export default function OptimizePage() {
         </div>
         </div>
       </div>
+
+      <Dialog open={!!pickingWaypointId} onOpenChange={(open) => !open && setPickingWaypointId(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Pick Waypoint Location</DialogTitle>
+            <DialogDescription>
+              Click on the map to accurately place your waypoint coordinate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-2 border rounded-md overflow-hidden">
+            {pickingWaypointId && (
+              <LocationPickerMap 
+                defaultLocation={tempCoords || [-6.200, 106.816]}
+                onLocationSelected={(lat, lng) => setTempCoords([lat, lng])} 
+              />
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setPickingWaypointId(null)}>Cancel</Button>
+            <Button onClick={() => {
+              if (pickingWaypointId && tempCoords) {
+                handleUpdateWaypoint(pickingWaypointId, 'lat', tempCoords[0])
+                handleUpdateWaypoint(pickingWaypointId, 'lng', tempCoords[1])
+                setFocusPoint([tempCoords[1], tempCoords[0]])
+                setPickingWaypointId(null)
+              }
+            }}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Input Mode Guide</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-700 leading-relaxed mt-2">
+            <p>
+              <strong>Manual Route:</strong> Allows you to simulate and design a fully custom delivery route from scratch. You can manually assign the Origin Hub, select Waypoints using an interactive map, choose the vehicle type, and configure the routing engine parameters.
+            </p>
+            <p>
+              <strong>Load At-Risk Shipment:</strong> Automatically loads data from an active shipment that is currently flagged with a high SLA delay risk. The origin, waypoints, weight, and vehicle type are pre-populated and locked to match the live shipment data, enabling you to generate immediate rerouting or intervention strategies specifically for that shipment.
+            </p>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setInfoOpen(false)}>Got it</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

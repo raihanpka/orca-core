@@ -313,6 +313,8 @@ async def active_shipments(
     shipments = []
     fallback_predictions = await _batch_fallback_predictions(request, rows)
     amplifier = get_settings().sla_risk_amplifier
+    live_alert_records = []
+
     for row in rows:
         shipment_id = str(row["id"])
         fallback = fallback_predictions.get(shipment_id)
@@ -326,6 +328,10 @@ async def active_shipments(
             if fallback
             else _live_sla_risk(row, delay_probability, amplifier)
         )
+        
+        if not fallback and risk is not None and risk >= 70.0:
+            live_alert_records.append((shipment_id, risk, _intervention(risk)))
+
         predicted_delay_hours = (
             fallback["predicted_delay_hours"]
             if fallback
@@ -350,7 +356,16 @@ async def active_shipments(
                 "intervention_recommended": risk is not None and risk >= 70.0,
             }
         )
-    return ok({"shipments": shipments, "next_cursor": next_cursor, "total_at_risk": total_at_risk})
+
+    if live_alert_records:
+        from db.queries import bulk_insert_alerts
+        await bulk_insert_alerts(request.app.state.db_pool, live_alert_records)
+
+    return ok({
+        "shipments": shipments,
+        "next_cursor": next_cursor,
+        "total_at_risk": total_at_risk,
+    })
 
 
 @router.get("/{shipment_id}")

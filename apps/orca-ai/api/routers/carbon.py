@@ -65,11 +65,12 @@ async def carbon_analytics(
             s.load_weight_kg,
             c.co2_kg,
             s.distance_km,
-            c.calculated_at
+            c.calculated_at,
+            (SELECT sla_risk_score FROM shipment_predictions sp WHERE sp.shipment_id = s.id ORDER BY time DESC LIMIT 1) as sla_risk_score
         FROM shipments s
         JOIN carbon_records c ON c.shipment_id = s.id
         WHERE c.calculated_at::date BETWEEN $1 AND $2
-        ORDER BY c.calculated_at DESC
+        ORDER BY s.dispatched_at DESC
         LIMIT 50
         """,
         date_from,
@@ -103,7 +104,8 @@ async def carbon_analytics(
                     "co2_kg": float(row["co2_kg"]),
                     "distance_km": float(row["distance_km"]),
                     "load_weight_kg": float(row["load_weight_kg"] or 0),
-                    "calculated_at": row["calculated_at"].isoformat() if row["calculated_at"] else None
+                    "calculated_at": row["calculated_at"].isoformat() if row["calculated_at"] else None,
+                    "sla_risk_score": float(row["sla_risk_score"]) if row["sla_risk_score"] is not None else None
                 }
                 for row in recent_routes
             ],

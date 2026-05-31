@@ -179,7 +179,7 @@ export default function OperationsPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-semibold text-slate-900 pr-6">
-                        {shipment.co2_kg ? `${formatNumber(shipment.co2_kg, 3)} kg` : '-'}
+                        {shipment.co2_kg ? `${formatNumber(shipment.co2_kg, 2)} kg` : '-'}
                       </TableCell>
                       <TableCell className="text-center">
                         <Link

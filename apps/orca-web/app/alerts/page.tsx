@@ -23,6 +23,8 @@ export default function AlertsPage() {
   const [selectedAlert, setSelectedAlert] = useState<RecentAlert | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [riskFilter, setRiskFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [timeFilter, setTimeFilter] = useState(24)
   const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(new Set())
 
   const handleAcknowledge = () => {
@@ -41,6 +43,15 @@ export default function AlertsPage() {
     if (riskFilter !== "all") {
       const riskLevel = alert.sla_risk_score > 75 ? "critical" : alert.sla_risk_score > 50 ? "elevated" : alert.sla_risk_score > 25 ? "warning" : "routine"
       if (riskLevel !== riskFilter) return false
+    }
+    if (statusFilter !== "all") {
+      const isAck = acknowledgedIds.has(alert.id)
+      if (statusFilter === "acknowledged" && !isAck) return false
+      if (statusFilter === "dispatched" && isAck) return false
+    }
+    if (timeFilter !== 0) {
+      const alertTime = new Date(alert.created_at).getTime()
+      if (Date.now() - alertTime > timeFilter * 60 * 60 * 1000) return false
     }
     return true
   })
@@ -75,11 +86,13 @@ export default function AlertsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={riskFilter} onValueChange={(val) => setRiskFilter(val || "all")}>
+        <Select value={riskFilter} onValueChange={(val: string | null) => setRiskFilter(val || "all")}>
           <SelectTrigger className="w-[180px] bg-white">
-            <SelectValue placeholder="Risk Level: All" />
+            <SelectValue placeholder="Risk Level: All">
+              {riskFilter === "all" ? "Risk Level: All" : riskFilter.charAt(0).toUpperCase() + riskFilter.slice(1)}
+            </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent alignItemWithTrigger={false}>
             <SelectItem value="all">Risk Level: All</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
             <SelectItem value="elevated">Elevated</SelectItem>
@@ -87,20 +100,33 @@ export default function AlertsPage() {
             <SelectItem value="routine">Routine</SelectItem>
           </SelectContent>
         </Select>
-        <Select defaultValue="all">
+        <Select value={statusFilter} onValueChange={(val: string | null) => setStatusFilter(val || "all")}>
           <SelectTrigger className="w-[160px] bg-white">
-            <SelectValue placeholder="Status: All" />
+            <SelectValue placeholder="Status: All">
+              {statusFilter === "all" ? "Status: All" : statusFilter === "dispatched" ? "Dispatched" : "Acknowledged"}
+            </SelectValue>
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+          <SelectContent alignItemWithTrigger={false}>
+            <SelectItem value="all">Status: All</SelectItem>
             <SelectItem value="dispatched">Dispatched</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="acknowledged">Acknowledged</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" className="bg-white">
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          Last 24 Hours
-        </Button>
+        <Select value={timeFilter.toString()} onValueChange={(val: string | null) => setTimeFilter(Number(val))}>
+          <SelectTrigger className="w-[160px] bg-white">
+            <div className="flex items-center">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Last 24 Hours">
+                {timeFilter === 24 ? "Last 24 Hours" : timeFilter === 168 ? "Last 7 Days" : "All Time"}
+              </SelectValue>
+            </div>
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false}>
+            <SelectItem value="24">Last 24 Hours</SelectItem>
+            <SelectItem value="168">Last 7 Days</SelectItem>
+            <SelectItem value="0">All Time</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px] items-start">

@@ -16,7 +16,7 @@ export function ShipmentDetailHeader({
   return (
     <div>
       <Link
-        href="/"
+        href="/operations"
         className="inline-flex items-center text-sm text-[#005A8C] hover:underline mb-4 font-medium"
       >
         <ArrowLeftIcon className="mr-1.5 h-4 w-4" /> Back to Operations

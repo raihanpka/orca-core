@@ -95,6 +95,7 @@ export type CarbonAnalytics = {
     distance_km: number
     load_weight_kg: number
     calculated_at: string
+    sla_risk_score?: number | null
   }[]
   glec_version: string;
 };

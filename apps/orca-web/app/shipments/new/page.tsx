@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import dynamic from "next/dynamic"
+const LocationPickerMap = dynamic(() => import("@/components/maps/location-picker-map").then(mod => mod.LocationPickerMap), { ssr: false, loading: () => <div className="h-[300px] w-full bg-muted animate-pulse rounded-lg" /> })
 import { API_BASE, API_TOKEN, apiFetch } from "@/lib/api"
 
 function toTitleCase(str: string) {
@@ -33,6 +36,8 @@ export default function NewShipmentPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pickingLocation, setPickingLocation] = useState(false)
+  const [tempCoords, setTempCoords] = useState<[number, number] | null>(null)
 
   const { data: hubsResponse } = useSWR<{ hubs: Array<{ id: string; name: string }> }>("/hubs/", apiFetch)
   const availableHubs = hubsResponse?.hubs ?? FALLBACK_HUBS
@@ -173,14 +178,20 @@ export default function NewShipmentPage() {
                 <Input required placeholder="e.g. Dramaga, Bogor" value={formData.destination_zone} onChange={(e) => setFormData({ ...formData, destination_zone: e.target.value })} />
               </div>
 
-              <div className="space-y-2">
-                <Label>Destination Latitude (LU/LS)</Label>
-                <Input required type="number" step="any" placeholder="-6.5960" value={formData.customer_lat} onChange={(e) => setFormData({ ...formData, customer_lat: e.target.value })} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Destination Longitude (BT/BB)</Label>
-                <Input required type="number" step="any" placeholder="106.7970" value={formData.customer_lng} onChange={(e) => setFormData({ ...formData, customer_lng: e.target.value })} />
+              <div className="space-y-2 col-span-2 md:col-span-1">
+                <Label>Destination Coordinates (Lat / Lng)</Label>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Input disabled placeholder="Lat" value={formData.customer_lat} className="bg-slate-50 cursor-not-allowed" />
+                    <Input disabled placeholder="Lng" value={formData.customer_lng} className="bg-slate-50 cursor-not-allowed" />
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setTempCoords([parseFloat(formData.customer_lat), parseFloat(formData.customer_lng)])
+                    setPickingLocation(true)
+                  }}>
+                    <MapPinIcon className="mr-2 h-4 w-4" /> Pick on Map
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -232,6 +243,38 @@ export default function NewShipmentPage() {
           </CardFooter>
         </form>
       </Card>
+
+      <Dialog open={pickingLocation} onOpenChange={setPickingLocation}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Pick Destination Location</DialogTitle>
+            <DialogDescription>
+              Click on the map to accurately place the destination coordinate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-2 border rounded-md overflow-hidden">
+            {pickingLocation && (
+              <LocationPickerMap 
+                defaultLocation={tempCoords || [-6.200, 106.816]}
+                onLocationSelected={(lat, lng) => setTempCoords([lat, lng])} 
+              />
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="outline" onClick={() => setPickingLocation(false)}>Cancel</Button>
+            <Button type="button" onClick={() => {
+              if (tempCoords) {
+                setFormData({
+                  ...formData,
+                  customer_lat: tempCoords[0].toFixed(5),
+                  customer_lng: tempCoords[1].toFixed(5),
+                })
+              }
+              setPickingLocation(false)
+            }}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
