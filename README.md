@@ -194,7 +194,7 @@ curl -H "X-API-Token: $PUBLIC_API_TOKEN" \
 ## Credits & Citations
 
 **Product Requirements Document:**
-* [Product Requirements Document](.docs/ORCA_PRD.md)
+* [Product Requirements Document](docs/ORCA_PRD.md)
 
 **Supporting Literature:**
 
