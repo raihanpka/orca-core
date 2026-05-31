@@ -262,7 +262,7 @@ async def create_shipment(req: CreateShipmentRequest, request: Request):
     distance_km = await asyncio.to_thread(provider.distance_km, hub_coords, (req.customer_lat, req.customer_lng))
 
     shipment_id = uuid.uuid4()
-    ext_id = req.external_id or f"MNL-{shipment_id.hex[:8]}"
+    ext_id = req.external_id or f"BLI-M{shipment_id.hex[:8].upper()}"
 
     async with request.app.state.db_pool.acquire() as conn:
         await conn.execute(

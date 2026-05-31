@@ -29,16 +29,19 @@ DESTINATIONS = [
 HUBS = ["hub_cakung", "hub_kebon_jeruk", "hub_pasar_minggu", "hub_kelapa_gading", "hub_cikarang", "hub_tangerang", "hub_bekasi", "hub_bogor", "hub_depok"]
 VEHICLES = ["van_diesel", "truck_lt35t", "truck_35_75t", "truck_gt75t", "scooter_electric"]
 
-async def seed_data(seed_count: int = 30) -> None:
+async def seed_data(seed_count: int = 30, is_cron: bool = False) -> None:
     database_url = os.getenv("DATABASE_URL") or os.getenv("DEV_DATABASE_URL") or "postgresql://orca:orca_pass@localhost:5432/orca_db"
     conn = await asyncpg.connect(database_url)
     
     records = []
     now = datetime.now()
     
+    import secrets
     for i in range(seed_count):
         loc = random.choice(DESTINATIONS)
-        ext_id = f"BLI-S00{i+1}"
+        prefix = "BLI-C" if is_cron else "BLI-S"
+        suffix = secrets.token_hex(4).upper()
+        ext_id = f"{prefix}{suffix}"
         shipment_id = uuid.uuid5(SHIPMENT_NAMESPACE, ext_id)
         
         # Realistic Indonesian Logistics Profile
@@ -96,7 +99,8 @@ async def seed_data(seed_count: int = 30) -> None:
         )
         
     await conn.close()
-    print(f"✅ Berhasil menyisipkan {len(records)} seed data awal secara batch!")
+    label = "Data Cron" if is_cron else "Seed Data Awal"
+    print(f"✅ Berhasil menyisipkan {len(records)} {label} dengan worker!")
 
 if __name__ == "__main__":
     asyncio.run(seed_data())

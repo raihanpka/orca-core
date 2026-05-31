@@ -21,8 +21,8 @@ async def process_shipment_delay(ctx: dict[str, Any], shipment_id: str) -> None:
 async def continuous_data_generation(ctx: dict[str, Any]) -> None:
     print("Cron Job Triggered: Generating new shipment data...")
     try:
-        # Generate 2 random shipments every time this runs
-        await seed_data(seed_count=2)
+        # Generate 1 random shipment every time this runs
+        await seed_data(seed_count=1, is_cron=True)
         print("Cron Job: Successfully generated new shipments.")
     except Exception as e:
         print(f"Cron Job Error: Failed to seed data - {e}")
@@ -37,7 +37,7 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     functions = [process_shipment_delay]
     cron_jobs = [
-        cron(continuous_data_generation, minute=set(range(0, 60, 15))) # Run every 15 minutes
+        cron(continuous_data_generation, minute=set(range(0, 60, 10))) # Run every 10 minutes
     ]
     on_startup = startup
     on_shutdown = shutdown
