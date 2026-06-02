@@ -30,10 +30,10 @@ async def get_active_shipments(pool, limit: int, cursor: str | None, hub_id: str
         LEFT JOIN carbon_records c ON c.shipment_id = s.id
         CROSS JOIN total
         WHERE s.status = 'in_transit'
-          AND ($1::uuid IS NULL OR s.id > $1::uuid)
+          AND ($1::text IS NULL OR (s.dispatched_at, s.id) < (SELECT dispatched_at, id FROM shipments WHERE id = $1::uuid))
           AND ($2::text IS NULL OR s.origin_hub_id = $2)
           AND ($3::float IS NULL OR COALESCE(l.sla_risk_score, 0) >= $3)
-        ORDER BY s.id
+        ORDER BY s.dispatched_at DESC, s.id
         LIMIT $4
         """,
         cursor,

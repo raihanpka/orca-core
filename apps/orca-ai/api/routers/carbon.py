@@ -71,7 +71,7 @@ async def carbon_analytics(
         FROM shipments s
         JOIN carbon_records c ON c.shipment_id = s.id
         WHERE c.calculated_at::date BETWEEN $1 AND $2
-        ORDER BY s.dispatched_at DESC
+        ORDER BY s.dispatched_at DESC, s.id
         LIMIT 50
         """,
         date_from,
