@@ -46,17 +46,20 @@ async def seed_data(seed_count: int = 30, is_cron: bool = False) -> None:
         
         # Realistic Indonesian Logistics Profile
         is_instant = random.random() < 0.2
+        # Kalau cron job, buat timestamp mendekati waktu sekarang (0-10 menit lalu) agar langsung muncul di urutan teratas
+        dispatched_ago = random.uniform(0, 0.16) if is_cron else random.randint(1, 3)
+
         if is_instant:
             # Same-day / Instant (2-8 hours)
             hours_to_sla = random.randint(2, 8)
-            dispatched_ago = random.randint(1, 4)
             distance_km = round(random.uniform(2.0, 15.0), 1)
             vehicle = random.choice(["scooter_electric", "van_diesel"])
             weight_kg = round(random.uniform(0.5, 20.0), 1)
         else:
             # Standard (2 - 5 days / 48 - 120 hours)
             hours_to_sla = random.randint(48, 120)
-            dispatched_ago = random.randint(5, 48)
+            if not is_cron:
+                dispatched_ago = random.randint(1, 3)
             distance_km = round(random.uniform(10.0, 80.0), 1)
             vehicle_chance = random.random()
             if vehicle_chance < 0.5:

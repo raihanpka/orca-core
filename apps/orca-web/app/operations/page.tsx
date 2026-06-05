@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { AlertTriangleIcon, XIcon, SearchIcon, Loader2Icon, InfoIcon, ArrowUpDownIcon } from "lucide-react"
@@ -40,12 +40,19 @@ type HubMetric = {
   current_inbound_volume: number;
 }
 
+import useSWRInfinite from "swr/infinite"
+
 export default function OperationsPage() {
   const pollInterval = Number(process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? 15000)
   
-  const { data: shipmentsData } = useSWR<ActiveShipmentsResponse>("/shipments/active", apiFetch, {
+  const getKey = (pageIndex: number, previousPageData: ActiveShipmentsResponse) => {
+    if (previousPageData && !previousPageData.next_cursor) return null
+    if (pageIndex === 0) return `/shipments/active?limit=50`
+    return `/shipments/active?limit=50&cursor=${previousPageData.next_cursor}`
+  }
+
+  const { data: infiniteData, size, setSize, isValidating } = useSWRInfinite<ActiveShipmentsResponse>(getKey, apiFetch, {
     refreshInterval: pollInterval,
-    fallbackData: { shipments: [], total_at_risk: 0 },
   })
   
   const { data: alertsData } = useSWR<{ alerts: RecentAlert[] }>("/alerts/recent", apiFetch, {
@@ -56,7 +63,8 @@ export default function OperationsPage() {
   const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const rows = shipmentsData?.shipments ?? []
+  const rows = infiniteData ? infiniteData.flatMap(page => page.shipments) : []
+  const hasMore = infiniteData?.[infiniteData.length - 1]?.next_cursor != null;
   
   const filteredRows = rows.filter(r => {
     if (!searchQuery) return true;
@@ -67,6 +75,7 @@ export default function OperationsPage() {
   });
 
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
+  const [currentPage, setCurrentPage] = useState(1)
   
   const sortedRows = [...filteredRows].sort((a, b) => {
     const timeA = new Date(a.dispatched_at || 0).getTime()
@@ -77,11 +86,30 @@ export default function OperationsPage() {
   const latestAlert = alertsData?.alerts?.[0]
   const showAlert = latestAlert && latestAlert.id !== dismissedAlertId
 
-  const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.max(1, Math.ceil(sortedRows.length / ITEMS_PER_PAGE));
-  const safePage = Math.min(currentPage, totalPages);
+  const totalLoadedPages = Math.max(1, Math.ceil(sortedRows.length / ITEMS_PER_PAGE));
+  
+  // Force currentPage to be valid if we searched and results shrank
+  const safePage = Math.min(currentPage, totalLoadedPages);
+  
+  const isLastLoadedPage = safePage === totalLoadedPages;
   const paginatedRows = sortedRows.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  const canGoNext = (!isLastLoadedPage || hasMore) && paginatedRows?.length > 0;
+
+  // Pre-fetch next API chunk when user gets close to the end of currently loaded data
+  // (e.g. if we have 5 loaded pages, and they reach page 4, fetch the next 50 items silently)
+  useEffect(() => {
+    if (hasMore && !isValidating && safePage >= totalLoadedPages - 1) {
+      setSize(size + 1);
+    }
+  }, [safePage, totalLoadedPages, hasMore, isValidating, size, setSize]);
+
+  const handleNextPage = () => {
+    if (isLastLoadedPage && hasMore) {
+      setSize(size + 1);
+    }
+    setCurrentPage(p => p + 1);
+  };
 
   return (
     <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6 bg-slate-50/50 min-h-screen">
@@ -192,7 +220,15 @@ export default function OperationsPage() {
                     </TableRow>
                   )
                 })}
-                {filteredRows.length === 0 && (
+                {paginatedRows.length === 0 && isValidating && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                      <Loader2Icon className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      Loading more shipments...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {paginatedRows.length === 0 && !isValidating && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-slate-500">
                       No active shipments found matching your criteria.
@@ -203,12 +239,20 @@ export default function OperationsPage() {
             </Table>
             <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-200 text-sm text-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
               <span>
-                Showing {filteredRows.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(safePage * ITEMS_PER_PAGE, filteredRows.length)} of {filteredRows.length} entries
+                Showing {filteredRows.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(safePage * ITEMS_PER_PAGE, filteredRows.length)} of {hasMore ? `${filteredRows.length}+` : filteredRows.length} entries
               </span>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" className="h-7 px-2 py-0 bg-white" disabled={safePage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>Prev</Button>
-                <span className="px-2 font-medium">Page {safePage} of {totalPages}</span>
-                <Button variant="outline" size="sm" className="h-7 px-2 py-0 bg-white" disabled={safePage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>Next</Button>
+                <span className="px-2 font-medium">Page {safePage} of {hasMore ? `${totalLoadedPages}+` : totalLoadedPages}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 px-2 py-0 bg-white" 
+                  disabled={!canGoNext || isValidating} 
+                  onClick={handleNextPage}
+                >
+                  Next
+                </Button>
               </div>
             </div>
           </Card>
