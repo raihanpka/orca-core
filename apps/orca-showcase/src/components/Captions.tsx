@@ -54,8 +54,7 @@ const SUBTITLES: Subtitle[] = [
   { startFrame: 3600, endFrame: 3720, text: "Targeting 20 to 30 percent fewer delays." },
   { startFrame: 3720, endFrame: 3840, text: "5 to 20 percent lower costs." },
   { startFrame: 3840, endFrame: 3960, text: "And 10 to 15 percent carbon reduction." },
-  { startFrame: 3960, endFrame: 4080, text: "AI driven predictive engine." },
-  { startFrame: 4080, endFrame: 4200, text: "Optimization and sustainability." },
+  { startFrame: 3960, endFrame: 4200, text: "Delivering real, measurable impact for the logistics industry." },
 
   // Scene 8: Architecture diagram (4200-4800)
   { startFrame: 4200, endFrame: 4350, text: "Our architecture: AI, data, and optimization." },

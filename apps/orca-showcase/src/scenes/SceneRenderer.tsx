@@ -39,8 +39,8 @@ const SlideUp: React.FC<SlideProps> = ({
     <div
       className={className}
       style={{
-        opacity: interpolate(t, [0, duration], [0, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.bezier(0.16,1,0.3,1)}),
-        translate: `0px ${interpolate(t, [0, duration], [20, 0], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.bezier(0.16,1,0.3,1)})}px`,
+        opacity: interpolate(t, [0, duration], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+        translate: `0px ${interpolate(t, [0, duration], [20, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) })}px`,
         background: CARD_BG,
         borderRadius: CARD_RADIUS,
         border: "1px solid rgba(0,0,0,0.06)",
@@ -100,7 +100,7 @@ const Bar: React.FC<{ delay?: number }> = ({ delay = 0 }) => {
   const frame = useCurrentFrame();
   return (
     <div style={{
-      width: interpolate(Math.max(0, frame - delay), [0, 16], [0, 48], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.bezier(0.16,1,0.3,1)}),
+      width: interpolate(Math.max(0, frame - delay), [0, 16], [0, 48], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) }),
       height: 2, borderRadius: 1, background: "rgba(0,0,0,0.08)", marginBottom: 20,
     }} />
   );
@@ -190,10 +190,10 @@ const AnimatedBarChart: React.FC<{
    Text rotator (cycles through phrases with crossfade)
    ================================================================ */
 const TAGLINES = [
-    "AI Powered Logistics Intelligence Platform",
+  "AI Powered Logistics Intelligence Platform",
   "Predict SLA Failures Before They Happen",
-    "Multi Objective Route Optimization",
-    "GLEC Certified Carbon Tracking",
+  "Multi Objective Route Optimization",
+  "GLEC Certified Carbon Tracking",
 ];
 
 const TextRotator: React.FC<{
@@ -359,7 +359,7 @@ const RollingCounter: React.FC<{
 }> = ({ value, startFrame, delay = 0, duration = 30, fontSize = 64 }) => {
   const frame = useCurrentFrame();
   const t = Math.max(0, frame - startFrame - delay);
-  
+
   const progress = interpolate(t, [0, duration], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -421,36 +421,36 @@ const OpeningTitle: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        opacity: interpolate(frame, [0, 20, 420, 450], [0, 0.45, 0.45, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+        opacity: interpolate(frame, [0, 20, 420, 450], [0, 0.45, 0.45, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
         pointerEvents: "none",
-        transform: `scale(${interpolate(frame, [0, 450], [0.95, 1.05], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})})`,
+        transform: `scale(${interpolate(frame, [0, 450], [0.95, 1.05], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })})`,
       }}>
         <NetworkNodes startFrame={0} />
       </div>
 
       <SlideUp startFrame={0} delay={8} duration={28} className="flex flex-col items-center" style={{ padding: `${CARD_PAD}px 64px`, minWidth: 640, maxWidth: 820, zIndex: 10 }}>
-        <div style={{ scale: String(interpolate(frame, [15, 70], [0.85, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.bezier(0.16,1,0.3,1)})) }}>
+        <div style={{ scale: String(interpolate(frame, [15, 70], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) })) }}>
           <Img src={staticFile("logo.png")} style={{ height: 100, width: "auto", marginBottom: 24 }} alt="ORCA" />
         </div>
 
         <span style={{
           fontSize: 28, fontWeight: 600, color: "#059669", letterSpacing: "0.15em", textTransform: "uppercase",
           textAlign: "center",
-          opacity: interpolate(Math.max(0, frame-70), [0, 22], [0, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.bezier(0.16,1,0.3,1)}),
-          translate: `0px ${interpolate(Math.max(0, frame-70), [0, 22], [14, 0], {extrapolateLeft:"clamp",extrapolateRight:"clamp"})}px`,
+          opacity: interpolate(Math.max(0, frame - 70), [0, 22], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+          translate: `0px ${interpolate(Math.max(0, frame - 70), [0, 22], [14, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px`,
         }}>
           AI Powered Carbon Aware Logistics Intelligence
         </span>
 
         <div style={{
           width: "60%", height: 1, background: "rgba(0,0,0,0.06)", marginTop: 28, marginBottom: 28,
-          opacity: interpolate(Math.max(0, frame-105), [0, 14], [0, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp"}),
+          opacity: interpolate(Math.max(0, frame - 105), [0, 14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
         }} />
 
         <div className="flex items-center justify-center" style={{
           gap: 42,
-          opacity: interpolate(Math.max(0, frame-120), [0, 20], [0, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp"}),
-          translate: `0px ${interpolate(Math.max(0, frame-120), [0, 20], [12, 0], {extrapolateLeft:"clamp",extrapolateRight:"clamp"})}px`,
+          opacity: interpolate(Math.max(0, frame - 120), [0, 20], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          translate: `0px ${interpolate(Math.max(0, frame - 120), [0, 20], [12, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px`,
         }}>
           <Img src={staticFile("blibli_logo.png")} style={{ height: 56, width: "auto", opacity: 0.9 }} alt="Blibli" />
           <Img src={staticFile("fablab_logo.png")} style={{ height: 56, width: "auto", opacity: 0.85 }} alt="FabLab" />
@@ -485,11 +485,12 @@ const TeamShowcase: React.FC = () => {
             Team
           </span>
           {TEAM.map((m, i) => {
-            const t = Math.max(0, frame - base - 28 - i * 8);
+            const appearFrame = i < 3 ? 610 + i * 15 : 690 + (i - 3) * 15;
+            const t = Math.max(0, frame - appearFrame);
             return (
               <div key={m.name} style={{
-                opacity: interpolate(t, [0, 12], [0, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp"}),
-                translate: `0px ${interpolate(t, [0, 12], [10, 0], {extrapolateLeft:"clamp",extrapolateRight:"clamp"})}px`,
+                opacity: interpolate(t, [0, 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+                translate: `0px ${interpolate(t, [0, 15], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px`,
                 background: "rgba(0,0,0,0.03)", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)",
                 padding: "12px 18px",
                 display: "flex",
@@ -574,7 +575,7 @@ const ProblemScenes: React.FC = () => {
 
           {/* Right Side: Map Visualization */}
           <div className="flex-1 flex items-center justify-center" style={{
-            opacity: interpolate(frame, [900, 930], [0, 1], {extrapolateLeft: "clamp"}),
+            opacity: interpolate(frame, [900, 930], [0, 1], { extrapolateLeft: "clamp" }),
           }}>
             <LogisticsMap startFrame={900} congested={frame >= 1450} />
           </div>
@@ -590,7 +591,7 @@ const ProblemScenes: React.FC = () => {
               <div style={{
                 position: "absolute", inset: "48px 52px",
                 display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-                opacity: interpolate(frame, [1650, 1665, 1995, 2010], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+                opacity: interpolate(frame, [1650, 1665, 1995, 2010], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
               }}>
                 <Bar delay={5} />
                 <span style={{ fontSize: 16, fontWeight: 600, color: "#78716c", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12, textAlign: "center" }}>
@@ -612,7 +613,7 @@ const ProblemScenes: React.FC = () => {
               <div style={{
                 position: "absolute", inset: "48px 52px",
                 display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-                opacity: interpolate(frame, [2010, 2025, 2115, 2130], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+                opacity: interpolate(frame, [2010, 2025, 2115, 2130], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
               }}>
                 <span style={{ fontSize: 34, fontWeight: 700, color: "#1c1917", lineHeight: 1.2, letterSpacing: "-0.02em", textAlign: "center" }}>
                   This is the problem we set out to solve.
@@ -623,7 +624,7 @@ const ProblemScenes: React.FC = () => {
               <div style={{
                 position: "absolute", inset: "48px 52px",
                 display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-                opacity: interpolate(frame, [2130, 2145], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+                opacity: interpolate(frame, [2130, 2145], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
               }}>
                 <span style={{ fontSize: 32, fontWeight: 700, color: "#059669", lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 16, textAlign: "center" }}>
                   How do you maintain service quality?
@@ -641,7 +642,7 @@ const ProblemScenes: React.FC = () => {
             <div style={{
               position: "absolute", inset: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              opacity: interpolate(frame, [1650, 1665, 1755, 1770], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+              opacity: interpolate(frame, [1650, 1665, 1755, 1770], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
             }}>
               <AnimatedBarChart data={LPI_DATA} startFrame={1650} delay={12} stagger={5} duration={26} />
             </div>
@@ -650,24 +651,24 @@ const ProblemScenes: React.FC = () => {
             <div style={{
               position: "absolute", inset: 0,
               display: "flex", flexDirection: "column", gap: 16, justifyContent: "center",
-              opacity: interpolate(frame, [1770, 1785, 1995, 2010], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+              opacity: interpolate(frame, [1770, 1785, 1995, 2010], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
             }}>
               <div style={{
                 background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.12)",
                 borderRadius: 12, padding: "24px 28px",
-                opacity: interpolate(frame, [1770, 1790], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
-                translate: `0px ${interpolate(frame, [1770, 1790], [12, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})}px`,
+                opacity: interpolate(frame, [1770, 1790], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+                translate: `0px ${interpolate(frame, [1770, 1790], [12, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px`,
               }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#78716c", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Financial Penalties</span>
                 <span style={{ fontSize: 48, fontWeight: 800, color: "#dc2626", letterSpacing: "-0.03em", lineHeight: 1, display: "block" }}>Up to 5%</span>
-                <span style={{ fontSize: 18, fontWeight: 500, color: "#44403c", display: "block", marginTop: 8 }}>revenue loss per SLA breach</span>
+                <span style={{ fontSize: 18, fontWeight: 500, color: "#44403c", display: "block", marginTop: 8 }}>Revenue loss per SLA breach</span>
                 <span style={{ fontSize: 13, fontWeight: 500, color: "#a8a29e", display: "block", marginTop: 12, letterSpacing: "0.02em" }}>Corporate SLA Benchmarks, 2025</span>
               </div>
               <div style={{
                 background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.07)",
                 borderRadius: 12, padding: "24px 28px",
-                opacity: interpolate(frame, [1800, 1820], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
-                translate: `0px ${interpolate(frame, [1800, 1820], [12, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})}px`,
+                opacity: interpolate(frame, [1800, 1820], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+                translate: `0px ${interpolate(frame, [1800, 1820], [12, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px`,
               }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#78716c", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Customer Churn</span>
                 <span style={{ fontSize: 48, fontWeight: 800, color: "#1c1917", letterSpacing: "-0.03em", lineHeight: 1, display: "block" }}>84% higher</span>
@@ -701,7 +702,7 @@ const ProblemScenes: React.FC = () => {
                 </SlideUp>
               </div>
               <div className="flex-1 flex items-center justify-center" style={{
-                opacity: interpolate(frame, [2400, 2430], [0, 1], {extrapolateLeft: "clamp"}),
+                opacity: interpolate(frame, [2400, 2430], [0, 1], { extrapolateLeft: "clamp" }),
               }}>
                 <EcommerceGrowthChart startFrame={2400} />
               </div>
@@ -717,8 +718,8 @@ const ProblemScenes: React.FC = () => {
                 <div style={{ display: "flex", gap: 16 }}>
                   {["Predictive", "Optimized", "Sustainable"].map((tag, i) => (
                     <div key={tag} style={{
-                      opacity: interpolate(Math.max(0, frame - 2640 - i * 18), [0, 16], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
-                      translate: `0px ${interpolate(Math.max(0, frame - 2640 - i * 18), [0, 16], [10, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})}px`,
+                      opacity: interpolate(Math.max(0, frame - 2640 - i * 18), [0, 16], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+                      translate: `0px ${interpolate(Math.max(0, frame - 2640 - i * 18), [0, 16], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px`,
                       background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)",
                       borderRadius: 8, padding: "12px 24px",
                     }}>
@@ -997,6 +998,8 @@ const ImpactSummary: React.FC = () => {
    ================================================================ */
 const ClosingCredits: React.FC = () => {
   const base = 8280;
+  const frame = useCurrentFrame();
+  const showTeam = Math.max(0, frame - 8380);
 
   return (
     <Interactive.Div name="Credits" className="absolute inset-0 bg-stone-50 flex flex-col items-center justify-center" style={{ padding: 80 }}>
@@ -1014,14 +1017,22 @@ const ClosingCredits: React.FC = () => {
           <Img src={staticFile("kemenko_logo.png")} style={{ height: 56, width: "auto", opacity: 0.85 }} alt="Kemenko" />
         </div>
 
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 20 }}>
-          Team Manusia yang tak pakai AI akan kalah
-        </span>
+        <div style={{
+          opacity: interpolate(showTeam, [0, 20], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          display: "flex", flexDirection: "column", alignItems: "center", width: "100%"
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 20, display: "block", width: "100%", textAlign: "center" }}>
+            Team Manusia yang tak pakai AI akan kalah
+          </span>
 
-        <div className="flex flex-col items-center" style={{ gap: 6, marginBottom: 18 }}>
-          {TEAM.map((m) => (
-            <span key={m.name} style={{ fontSize: 20, color: "#44403c" }}>{m.name} · {m.role}</span>
-          ))}
+          <div className="flex flex-col items-center" style={{ gap: 6, marginBottom: 18, width: "100%" }}>
+            {TEAM.map((m, i) => (
+              <span key={m.name} style={{ 
+                fontSize: 20, color: "#44403c",
+                opacity: interpolate(showTeam - 20 - i * 15, [0, 20], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+              }}>{m.name} · {m.role}</span>
+            ))}
+          </div>
         </div>
 
         <span style={{ fontSize: 18, color: "#78716c", letterSpacing: "0.08em" }}>
