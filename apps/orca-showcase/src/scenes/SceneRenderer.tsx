@@ -726,12 +726,12 @@ const MetricCards: React.FC = () => {
             </span>
             <span style={{
               fontSize: 64, fontWeight: 800, color: "#059669", lineHeight: 1, marginBottom: 10,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%"
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%"
             }}>
               <RollingCounter value={m.low} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={64} />
-              <span style={{ fontSize: 32, fontWeight: 600, color: "#6b7280" }}>to</span>
+              <span>to</span>
               <RollingCounter value={m.high} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={64} />
-              <span style={{ fontSize: 44, fontWeight: 700 }}>{m.suffix}</span>
+              <span>{m.suffix}</span>
             </span>
             <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", textAlign: "center" }}>
               {m.sub}
