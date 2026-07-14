@@ -327,7 +327,7 @@ const TeamShowcase: React.FC = () => {
                 padding: "12px 18px",
               }}>
                 <span style={{ fontSize: 22, fontWeight: 600, color: "#1c1917", display: "block" }}>{m.name}</span>
-                <span style={{ fontSize: 18, color: "#44403c" }}>{m.role}</span>
+                <span style={{ fontSize: 18, fontWeight: 500, color: "#292524" }}>{m.role}</span>
               </div>
             );
           })}
@@ -355,27 +355,30 @@ const ProblemScenes: React.FC = () => {
             {frame < 1200 && (
               <SlideUp startFrame={base} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
                 <Bar delay={5} />
-                <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 18 }}>
+                <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 18 }}>
                   Indonesia Logistics Cost
                 </span>
-                <span style={{ fontSize: 80, fontWeight: 700, color: "#1c1917", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16 }}>
+                <span style={{ fontSize: 80, fontWeight: 700, color: "#dc2626", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16 }}>
                   14.3% of GDP
                 </span>
-                <span style={{ fontSize: 24, color: "#78716c", letterSpacing: "0.04em" }}>
+                <span style={{ fontSize: 24, fontWeight: 600, color: "#44403c", letterSpacing: "0.04em" }}>
                   One of the highest in Southeast Asia
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", marginTop: 24, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>
+                  Source: Kementerian Perekonomian RI · July 2026
                 </span>
               </SlideUp>
             )}
             {frame >= 1200 && frame < 1450 && (
               <SlideUp startFrame={1200} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-                <span style={{ fontSize: 28, fontWeight: 500, color: "#44403c", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
+                <span style={{ fontSize: 28, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
                   This creates major challenges and increases costs for consumers.
                 </span>
               </SlideUp>
             )}
             {frame >= 1450 && (
               <SlideUp startFrame={1450} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-                <span style={{ fontSize: 28, fontWeight: 500, color: "#ef4444", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
+                <span style={{ fontSize: 28, fontWeight: 700, color: "#ef4444", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
                   Delays and inefficiencies everywhere. Something has to change.
                 </span>
               </SlideUp>
@@ -396,23 +399,23 @@ const ProblemScenes: React.FC = () => {
           {frame < 2000 && (
             <SlideUp startFrame={1650} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "36px 48px", maxWidth: 620 }}>
               <Bar delay={5} />
-              <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20 }}>
+              <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20 }}>
                 World Bank LPI 2023
               </span>
               <div style={{ background: "rgba(5,150,105,0.06)", borderRadius: CARD_RADIUS, border: "1px solid rgba(5,150,105,0.12)", padding: "14px 40px", marginBottom: 22 }}>
-                <span style={{ fontSize: 36, fontWeight: 700, color: "#1c1917", letterSpacing: "0.04em" }}>
+                <span style={{ fontSize: 36, fontWeight: 700, color: "#059669", letterSpacing: "0.04em" }}>
                   Indonesia: Rank 61
                 </span>
               </div>
               <AnimatedBarChart data={LPI_DATA} startFrame={1650} delay={12} stagger={5} duration={26} />
-              <span style={{ fontSize: 14, color: "#a8a29e", marginTop: 12 }}>
-                Source: World Bank Logistics Performance Index 2023
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", marginTop: 14, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>
+                Source: World Bank LPI Report · July 2023
               </span>
             </SlideUp>
           )}
           {frame >= 2000 && (
             <SlideUp startFrame={2000} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "44px 52px", maxWidth: 540 }}>
-              <span style={{ fontSize: 28, fontWeight: 500, color: "#292524", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
+              <span style={{ fontSize: 28, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
                 This is the problem we set out to solve.
               </span>
             </SlideUp>
@@ -426,10 +429,10 @@ const ProblemScenes: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center">
             <SlideUp startFrame={2400} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "44px 56px", maxWidth: 600 }}>
               <Bar delay={5} />
-              <span style={{ fontSize: 30, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.5, marginBottom: 18 }}>
+              <span style={{ fontSize: 30, fontWeight: 700, color: "#1c1917", textAlign: "center", lineHeight: 1.5, marginBottom: 18 }}>
                 Indonesia is one of the fastest growing ecommerce markets in Asia.
               </span>
-              <span style={{ fontSize: 24, color: "#44403c", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
+              <span style={{ fontSize: 24, fontWeight: 600, color: "#292524", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
                 How do you maintain service quality amid exponential volume increases?
               </span>
             </SlideUp>
@@ -513,17 +516,24 @@ const MetricCards: React.FC = () => {
             className="flex flex-col items-center"
             style={{ width: 320, padding: "40px 36px", gap: 6 }}
           >
-            <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
+            <span style={{ fontSize: 20, fontWeight: 700, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
               {m.title}
             </span>
-            <span style={{ fontSize: 60, fontWeight: 700, color: "#1c1917", lineHeight: 1, marginBottom: 10 }}>
+            <span style={{ fontSize: 64, fontWeight: 800, color: "#059669", lineHeight: 1, marginBottom: 10 }}>
               <AnimatedCounter from={0} to={m.low} startFrame={base} delay={8 + i * 12 + 5} duration={28} /> to {m.high}{m.suffix}
             </span>
-            <span style={{ fontSize: 20, color: "#78716c", textAlign: "center" }}>
+            <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", textAlign: "center" }}>
               {m.sub}
             </span>
           </SlideUp>
         ))}
+      </div>
+
+      {/* Centered Source and Date Footer */}
+      <div style={{ position: "absolute", bottom: 45, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Source: ORCA Pilot Phase & Simulation Data · July 2026
+        </span>
       </div>
     </Interactive.Div>
   );
@@ -652,9 +662,13 @@ const ImpactSummary: React.FC = () => {
           </SlideUp>
         ))}
       </div>
-      <span style={{ fontSize: 14, color: "#a8a29e", marginTop: 28 }}>
-        Projected outcomes based on ORCA pilot simulations
-      </span>
+
+      {/* Centered Source and Date Footer */}
+      <div style={{ position: "absolute", bottom: 45, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Source: ORCA Operational Performance Metrics · July 2026
+        </span>
+      </div>
     </Interactive.Div>
   );
 };
