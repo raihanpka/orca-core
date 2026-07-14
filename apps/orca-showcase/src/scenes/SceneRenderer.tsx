@@ -1,6 +1,7 @@
 import React from "react";
 import { useCurrentFrame, interpolate, Easing, Img, staticFile, Interactive } from "remotion";
 import { LogisticsMap } from "../components/LogisticsMap";
+import { Terminal, Cpu, Lightbulb, Compass, Palette, Clock, Route, Leaf } from "lucide-react";
 
 /* ================================================================
    Warm Light palette (clean professional, great for projectors)
@@ -104,20 +105,7 @@ const Bar: React.FC<{ delay?: number }> = ({ delay = 0 }) => {
   );
 };
 
-/* ================================================================
-   Animated counter (counts from `from` to `to` over `duration` frames)
-   ================================================================ */
-const AnimatedCounter: React.FC<{
-  from: number; to: number; startFrame: number; delay?: number; duration?: number;
-}> = ({ from, to, startFrame, delay = 0, duration = 30 }) => {
-  const frame = useCurrentFrame();
-  const t = Math.max(0, frame - startFrame - delay);
-  const val = interpolate(t, [0, duration], [from, to], {
-    extrapolateLeft: "clamp", extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
-  return <>{Math.round(val)}</>;
-};
+
 
 /* ================================================================
    Animated bar chart (horizontal bars growing with stagger)
@@ -238,6 +226,184 @@ const TextRotator: React.FC<{
 };
 
 /* ================================================================
+   Abstract Constellation / Network Plexus for Opening background
+   ================================================================ */
+const NetworkNodes: React.FC<{ startFrame: number }> = ({ startFrame }) => {
+  const frame = useCurrentFrame();
+  const localFrame = Math.max(0, frame - startFrame);
+
+  // 16 node points with drift offsets
+  const nodes = [
+    { x: 150, y: 80, dx: 30, dy: 20, speed: 0.012 },
+    { x: 300, y: 180, dx: 40, dy: 30, speed: 0.008 },
+    { x: 500, y: 110, dx: 20, dy: 40, speed: 0.016 },
+    { x: 680, y: 220, dx: 45, dy: 20, speed: 0.01 },
+    { x: 850, y: 90, dx: 30, dy: 35, speed: 0.014 },
+    { x: 220, y: 260, dx: 25, dy: 25, speed: 0.018 },
+    { x: 420, y: 280, dx: 35, dy: 20, speed: 0.011 },
+    { x: 580, y: 70, dx: 40, dy: 25, speed: 0.009 },
+    { x: 740, y: 260, dx: 20, dy: 40, speed: 0.013 },
+    { x: 920, y: 160, dx: 40, dy: 30, speed: 0.011 },
+    { x: 100, y: 200, dx: 20, dy: 45, speed: 0.02 },
+    { x: 260, y: 60, dx: 35, dy: 35, speed: 0.013 },
+    { x: 520, y: 230, dx: 30, dy: 25, speed: 0.015 },
+    { x: 780, y: 140, dx: 25, dy: 30, speed: 0.017 },
+    { x: 880, y: 290, dx: 40, dy: 20, speed: 0.012 },
+    { x: 360, y: 100, dx: 25, dy: 25, speed: 0.02 },
+  ];
+
+  const currentPositions = nodes.map((node) => {
+    const angle = localFrame * node.speed;
+    const x = node.x + Math.sin(angle) * node.dx;
+    const y = node.y + Math.cos(angle) * node.dy;
+    return { x, y };
+  });
+
+  return (
+    <svg viewBox="0 0 1000 400" style={{ width: "100%", height: "100%", overflow: "visible" }}>
+      {/* Dynamic connection lines */}
+      {currentPositions.map((p1, i) => {
+        return currentPositions.slice(i + 1).map((p2, j) => {
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 180) return null;
+
+          const opacity = interpolate(dist, [70, 180], [0.3, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          });
+
+          return (
+            <line
+              key={`line-${i}-${i + 1 + j}`}
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              stroke="#059669"
+              strokeWidth={1}
+              opacity={opacity}
+            />
+          );
+        });
+      })}
+
+      {/* Nodes */}
+      {currentPositions.map((pos, i) => {
+        return (
+          <circle
+            key={`node-${i}`}
+            cx={pos.x}
+            cy={pos.y}
+            r={nodes[i].speed * 200 + 1.5}
+            fill="#059669"
+            opacity={0.45}
+            style={{
+              filter: "drop-shadow(0px 0px 4px rgba(5,150,105,0.4))",
+            }}
+          />
+        );
+      })}
+    </svg>
+  );
+};
+
+/* ================================================================
+   Rolling Digit Odometer counter for premium metric scrolling
+   ================================================================ */
+const RollingDigit: React.FC<{
+  target: number;
+  progress: number;
+  height: number;
+}> = ({ target, progress, height }) => {
+  const digits = Array.from({ length: target + 1 }, (_, idx) => idx);
+  const currentOffset = progress * target * height;
+
+  return (
+    <div style={{
+      height: `${height}px`,
+      overflow: "hidden",
+      display: "inline-block",
+      position: "relative",
+      width: "0.55em",
+    }}>
+      <div style={{
+        transform: `translateY(-${currentOffset}px)`,
+        display: "flex",
+        flexDirection: "column",
+        height: `${(target + 1) * height}px`,
+      }}>
+        {digits.map((d) => (
+          <span key={d} style={{
+            height: `${height}px`,
+            lineHeight: `${height}px`,
+            display: "block",
+            textAlign: "center",
+          }}>
+            {d}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const RollingCounter: React.FC<{
+  value: number | string;
+  startFrame: number;
+  delay?: number;
+  duration?: number;
+  fontSize?: number;
+}> = ({ value, startFrame, delay = 0, duration = 30, fontSize = 64 }) => {
+  const frame = useCurrentFrame();
+  const t = Math.max(0, frame - startFrame - delay);
+  
+  const progress = interpolate(t, [0, duration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1),
+  });
+
+  const height = fontSize;
+  const digitsStr = String(value).split("");
+
+  return (
+    <div style={{
+      display: "inline-flex",
+      justifyContent: "center",
+      alignItems: "center",
+      fontSize: `${fontSize}px`,
+      height: `${height}px`,
+      lineHeight: `${height}px`,
+      fontFamily: "Inter, sans-serif",
+    }}>
+      {digitsStr.map((char, i) => {
+        if (isNaN(Number(char)) || char === " ") {
+          return (
+            <span key={i} style={{
+              width: char === "." ? "0.22em" : "auto",
+              display: "inline-block",
+              textAlign: "center",
+            }}>
+              {char}
+            </span>
+          );
+        }
+        return (
+          <RollingDigit
+            key={i}
+            target={Number(char)}
+            progress={progress}
+            height={height}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+/* ================================================================
    Scene 1: Opening (0-450)
    ================================================================ */
 const OpeningTitle: React.FC = () => {
@@ -247,7 +413,7 @@ const OpeningTitle: React.FC = () => {
     <Interactive.Div name="Opening" className="absolute inset-0 bg-stone-50 flex flex-col items-center justify-center" style={{ padding: 80 }}>
       <AnimatedBg />
 
-      {/* Background Logistics Map */}
+      {/* Background Abstract Network Nodes */}
       <div style={{
         position: "absolute",
         inset: 0,
@@ -258,7 +424,7 @@ const OpeningTitle: React.FC = () => {
         pointerEvents: "none",
         transform: `scale(${interpolate(frame, [0, 450], [0.95, 1.05], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})})`,
       }}>
-        <LogisticsMap startFrame={0} />
+        <NetworkNodes startFrame={0} />
       </div>
 
       <SlideUp startFrame={0} delay={8} duration={28} className="flex flex-col items-center" style={{ padding: `${CARD_PAD}px 64px`, minWidth: 640, maxWidth: 820, zIndex: 10 }}>
@@ -298,11 +464,11 @@ const OpeningTitle: React.FC = () => {
    Scene 2: Team (450-900)
    ================================================================ */
 const TEAM = [
-  { name: "Raihan Putra Kirana", role: "Project Lead and Software" },
-  { name: "Husni Abdillah", role: "AI Engineer" },
-  { name: "Steven Lie Wibowo", role: "Solution and Innovation Analyst" },
-  { name: "Hilfani Rayyanne Subagio", role: "Product Strategy Analyst" },
-  { name: "Muhammad Abyan Putra Wibowo", role: "Product Designer" },
+  { name: "Raihan Putra Kirana", role: "Project Lead and Software", icon: Terminal },
+  { name: "Husni Abdillah", role: "AI Engineer", icon: Cpu },
+  { name: "Steven Lie Wibowo", role: "Solution and Innovation Analyst", icon: Lightbulb },
+  { name: "Hilfani Rayyanne Subagio", role: "Product Strategy Analyst", icon: Compass },
+  { name: "Muhammad Abyan Putra Wibowo", role: "Product Designer", icon: Palette },
 ];
 
 const TeamShowcase: React.FC = () => {
@@ -325,9 +491,25 @@ const TeamShowcase: React.FC = () => {
                 translate: `0px ${interpolate(t, [0, 12], [10, 0], {extrapolateLeft:"clamp",extrapolateRight:"clamp"})}px`,
                 background: "rgba(0,0,0,0.03)", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)",
                 padding: "12px 18px",
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
               }}>
-                <span style={{ fontSize: 22, fontWeight: 600, color: "#1c1917", display: "block" }}>{m.name}</span>
-                <span style={{ fontSize: 18, fontWeight: 500, color: "#292524" }}>{m.role}</span>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "30%",
+                  background: "rgba(5,150,105,0.06)",
+                  border: "1px solid rgba(5,150,105,0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <m.icon size={22} color="#059669" />
+                </div>
+                <div>
+                  <span style={{ fontSize: 22, fontWeight: 600, color: "#1c1917", display: "block" }}>{m.name}</span>
+                  <span style={{ fontSize: 18, fontWeight: 500, color: "#292524" }}>{m.role}</span>
+                </div>
               </div>
             );
           })}
@@ -358,8 +540,12 @@ const ProblemScenes: React.FC = () => {
                 <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 18 }}>
                   Indonesia Logistics Cost
                 </span>
-                <span style={{ fontSize: 80, fontWeight: 700, color: "#dc2626", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16 }}>
-                  14.3% of GDP
+                <span style={{
+                  fontSize: 80, fontWeight: 700, color: "#dc2626", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 4
+                }}>
+                  <RollingCounter value="14.3" startFrame={base} delay={10} duration={32} fontSize={80} />
+                  <span>% of GDP</span>
                 </span>
                 <span style={{ fontSize: 24, fontWeight: 600, color: "#44403c", letterSpacing: "0.04em" }}>
                   One of the highest in Southeast Asia
@@ -402,9 +588,16 @@ const ProblemScenes: React.FC = () => {
               <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20 }}>
                 World Bank LPI 2023
               </span>
-              <div style={{ background: "rgba(5,150,105,0.06)", borderRadius: CARD_RADIUS, border: "1px solid rgba(5,150,105,0.12)", padding: "14px 40px", marginBottom: 22 }}>
-                <span style={{ fontSize: 36, fontWeight: 700, color: "#059669", letterSpacing: "0.04em" }}>
-                  Indonesia: Rank 61
+              <div style={{
+                background: "rgba(5,150,105,0.06)", borderRadius: CARD_RADIUS, border: "1px solid rgba(5,150,105,0.12)", padding: "14px 40px", marginBottom: 22,
+                display: "flex", justifyContent: "center", alignItems: "center"
+              }}>
+                <span style={{
+                  fontSize: 36, fontWeight: 700, color: "#059669", letterSpacing: "0.04em",
+                  display: "flex", alignItems: "center", gap: 8
+                }}>
+                  <span>Indonesia: Rank</span>
+                  <RollingCounter value={61} startFrame={1650} delay={12} duration={30} fontSize={36} />
                 </span>
               </div>
               <AnimatedBarChart data={LPI_DATA} startFrame={1650} delay={12} stagger={5} duration={26} />
@@ -454,9 +647,9 @@ const ProblemScenes: React.FC = () => {
    Scene 4:     ORCA: 3 Pillars (3000-3600)
    ================================================================ */
 const PILLARS = [
-  { title: "Delay Prediction", sub: "LightGBM", num: "01" },
-  { title: "Route Optimization", sub: "NSGA-II", num: "02" },
-  { title: "Carbon Tracking", sub: "GLEC Framework", num: "03" },
+  { title: "Delay Prediction", sub: "LightGBM", num: "01", icon: Clock, startFrame: 3240 },
+  { title: "Route Optimization", sub: "NSGA-II", num: "02", icon: Route, startFrame: 3360 },
+  { title: "Carbon Tracking", sub: "GLEC Framework", num: "03", icon: Leaf, startFrame: 3480 },
 ];
 
 const OrcaIntro: React.FC = () => {
@@ -472,18 +665,29 @@ const OrcaIntro: React.FC = () => {
       </SlideUp>
 
       <div className="flex items-stretch" style={{ gap: 24 }}>
-        {PILLARS.map((p, i) => (
-          <SlideUp key={p.title} startFrame={base} delay={22 + i * 10} duration={18} className="flex flex-col items-center" style={{ width: 290, padding: "36px 32px", gap: 12 }}>
+        {PILLARS.map((p) => (
+          <SlideUp
+            key={p.title}
+            startFrame={p.startFrame}
+            delay={0}
+            duration={18}
+            className="flex flex-col items-center"
+            style={{
+              width: 290,
+              padding: "36px 32px",
+              gap: 12,
+            }}
+          >
             <div style={{
-              width: 44, height: 44,
-              borderRadius: "50%", background: "rgba(0,0,0,0.04)",
-              border: "1px solid rgba(0,0,0,0.06)",
+              width: 52, height: 52,
+              borderRadius: "50%", background: "rgba(5,150,105,0.06)",
+              border: "1px solid rgba(5,150,105,0.12)",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <span style={{ fontSize: 18, fontWeight: 600, color: "#1c1917" }}>{p.num}</span>
+              <p.icon size={24} color="#059669" />
             </div>
-            <span style={{ fontSize: 24, fontWeight: 600, color: "#1c1917", textAlign: "center" }}>{p.title}</span>
-            <span style={{ fontSize: 20, color: "#78716c", fontWeight: 500 }}>{p.sub}</span>
+            <span style={{ fontSize: 24, fontWeight: 700, color: "#1c1917", textAlign: "center" }}>{p.title}</span>
+            <span style={{ fontSize: 20, color: "#44403c", fontWeight: 600 }}>{p.sub}</span>
           </SlideUp>
         ))}
       </div>
@@ -519,8 +723,14 @@ const MetricCards: React.FC = () => {
             <span style={{ fontSize: 20, fontWeight: 700, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
               {m.title}
             </span>
-            <span style={{ fontSize: 64, fontWeight: 800, color: "#059669", lineHeight: 1, marginBottom: 10 }}>
-              <AnimatedCounter from={0} to={m.low} startFrame={base} delay={8 + i * 12 + 5} duration={28} /> to {m.high}{m.suffix}
+            <span style={{
+              fontSize: 64, fontWeight: 800, color: "#059669", lineHeight: 1, marginBottom: 10,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%"
+            }}>
+              <RollingCounter value={m.low} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={64} />
+              <span style={{ fontSize: 32, fontWeight: 600, color: "#6b7280" }}>to</span>
+              <RollingCounter value={m.high} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={64} />
+              <span style={{ fontSize: 44, fontWeight: 700 }}>{m.suffix}</span>
             </span>
             <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", textAlign: "center" }}>
               {m.sub}
@@ -648,8 +858,12 @@ const ImpactSummary: React.FC = () => {
               delay={8 + i * 10 + 6}
               duration={30}
             >
-              <span style={{ fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1 }}>
-                <AnimatedCounter from={0} to={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} />{m.suffix}
+              <span style={{
+                fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1,
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <RollingCounter value={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} fontSize={30} />
+                <span>{m.suffix}</span>
               </span>
             </CircularProgress>
 
