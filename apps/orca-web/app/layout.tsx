@@ -8,7 +8,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "ORCA Dashboard | Blibli.com",
+  title: "ORCA Dashboard | AI Open Innovation 2026",
   description: "Optimized Route and Carbon Analytics",
 };
 

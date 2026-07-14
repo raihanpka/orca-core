@@ -241,3 +241,8 @@ poetry.toml
 
 # LSP config files
 pyrightconfig.json
+
+# Gemini AI Agent Customizations / Skills
+.agents/
+.omo/
+skills-lock.json
