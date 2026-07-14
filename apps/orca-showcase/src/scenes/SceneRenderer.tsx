@@ -1,5 +1,6 @@
 import React from "react";
 import { useCurrentFrame, interpolate, Easing, Img, staticFile, Interactive } from "remotion";
+import { LogisticsMap } from "../components/LogisticsMap";
 
 /* ================================================================
    Warm Light palette (clean professional, great for projectors)
@@ -152,8 +153,24 @@ const AnimatedBarChart: React.FC<{
           easing: Easing.bezier(0.16, 1, 0.3, 1),
         });
         const isID = item.country === "Indonesia";
+        const glowOpacity = isID
+          ? interpolate(Math.sin(frame * 0.12), [-1, 1], [0.08, 0.22])
+          : 0;
         return (
-          <div key={item.country} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            key={item.country}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: isID ? `rgba(5,150,105,${glowOpacity})` : "transparent",
+              borderRadius: 8,
+              padding: "4px 10px",
+              border: isID ? "1px solid rgba(5,150,105,0.25)" : "1px solid transparent",
+              boxShadow: isID ? "0 2px 10px rgba(5,150,105,0.05)" : "none",
+              margin: "0 -10px",
+            }}
+          >
             <span style={{
               width: 100, fontSize: 15, fontWeight: isID ? 700 : 500,
               color: isID ? "#059669" : "#44403c", textAlign: "right", flexShrink: 0,
@@ -230,7 +247,21 @@ const OpeningTitle: React.FC = () => {
     <Interactive.Div name="Opening" className="absolute inset-0 bg-stone-50 flex flex-col items-center justify-center" style={{ padding: 80 }}>
       <AnimatedBg />
 
-      <SlideUp startFrame={0} delay={8} duration={28} className="flex flex-col items-center" style={{ padding: `${CARD_PAD}px 64px`, minWidth: 640, maxWidth: 820 }}>
+      {/* Background Logistics Map */}
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: interpolate(frame, [0, 20, 420, 450], [0, 0.45, 0.45, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+        pointerEvents: "none",
+        transform: `scale(${interpolate(frame, [0, 450], [0.95, 1.05], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})})`,
+      }}>
+        <LogisticsMap startFrame={0} />
+      </div>
+
+      <SlideUp startFrame={0} delay={8} duration={28} className="flex flex-col items-center" style={{ padding: `${CARD_PAD}px 64px`, minWidth: 640, maxWidth: 820, zIndex: 10 }}>
         <div style={{ scale: String(interpolate(frame, [15, 70], [0.85, 1], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.bezier(0.16,1,0.3,1)})) }}>
           <Img src={staticFile("logo.png")} style={{ height: 100, width: "auto", marginBottom: 24 }} alt="ORCA" />
         </div>
@@ -314,40 +345,50 @@ const ProblemScenes: React.FC = () => {
   const base = 900;
 
   return (
-    <Interactive.Div name="Problem" className="absolute inset-0 bg-stone-50 flex items-center justify-center" style={{ padding: 80 }}>
+    <Interactive.Div name="Problem" className="absolute inset-0 bg-stone-50 flex items-center justify-center" style={{ padding: 60 }}>
       <AnimatedBg />
 
       {frame >= 900 && frame < 1650 && (
-        <>
-          {frame < 1200 && (
-            <SlideUp startFrame={base} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-              <Bar delay={5} />
-              <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 18 }}>
-                Indonesia Logistics Cost
-              </span>
-              <span style={{ fontSize: 84, fontWeight: 700, color: "#1c1917", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16 }}>
-                14.3% of GDP
-              </span>
-              <span style={{ fontSize: 24, color: "#78716c", letterSpacing: "0.04em" }}>
-                One of the highest in Southeast Asia
-              </span>
-            </SlideUp>
-          )}
-          {frame >= 1200 && frame < 1450 && (
-            <SlideUp startFrame={1200} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-              <span style={{ fontSize: 28, fontWeight: 500, color: "#44403c", textAlign: "center", lineHeight: 1.6, maxWidth: 480 }}>
-                This creates major challenges and increases costs for consumers.
-              </span>
-            </SlideUp>
-          )}
-          {frame >= 1450 && (
-            <SlideUp startFrame={1450} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-              <span style={{ fontSize: 28, fontWeight: 500, color: "#292524", textAlign: "center", lineHeight: 1.6, maxWidth: 480 }}>
-                Delays and inefficiencies everywhere. Something has to change.
-              </span>
-            </SlideUp>
-          )}
-        </>
+        <div className="flex items-center justify-between w-full h-full max-w-[1720px] gap-12">
+          {/* Left Side: Stats/Text Card */}
+          <div className="flex flex-col items-center justify-center flex-1">
+            {frame < 1200 && (
+              <SlideUp startFrame={base} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
+                <Bar delay={5} />
+                <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 18 }}>
+                  Indonesia Logistics Cost
+                </span>
+                <span style={{ fontSize: 80, fontWeight: 700, color: "#1c1917", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16 }}>
+                  14.3% of GDP
+                </span>
+                <span style={{ fontSize: 24, color: "#78716c", letterSpacing: "0.04em" }}>
+                  One of the highest in Southeast Asia
+                </span>
+              </SlideUp>
+            )}
+            {frame >= 1200 && frame < 1450 && (
+              <SlideUp startFrame={1200} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
+                <span style={{ fontSize: 28, fontWeight: 500, color: "#44403c", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
+                  This creates major challenges and increases costs for consumers.
+                </span>
+              </SlideUp>
+            )}
+            {frame >= 1450 && (
+              <SlideUp startFrame={1450} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
+                <span style={{ fontSize: 28, fontWeight: 500, color: "#ef4444", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
+                  Delays and inefficiencies everywhere. Something has to change.
+                </span>
+              </SlideUp>
+            )}
+          </div>
+
+          {/* Right Side: Map Visualization */}
+          <div className="flex-1 flex items-center justify-center" style={{
+            opacity: interpolate(frame, [900, 930], [0, 1], {extrapolateLeft: "clamp"}),
+          }}>
+            <LogisticsMap startFrame={900} congested={frame >= 1450} />
+          </div>
+        </div>
       )}
 
       {frame >= 1650 && frame < 2400 && (
@@ -380,15 +421,27 @@ const ProblemScenes: React.FC = () => {
       )}
 
       {frame >= 2400 && frame < 3000 && (
-        <SlideUp startFrame={2400} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "44px 56px", maxWidth: 600 }}>
-          <Bar delay={5} />
-          <span style={{ fontSize: 30, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.5, marginBottom: 18 }}>
-            Indonesia is one of the fastest growing ecommerce markets in Asia.
-          </span>
-          <span style={{ fontSize: 24, color: "#44403c", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
-            How do you maintain service quality amid exponential volume increases?
-          </span>
-        </SlideUp>
+        <div className="flex items-center justify-between w-full h-full max-w-[1720px] gap-12">
+          {/* Left Side: Text Box */}
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <SlideUp startFrame={2400} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "44px 56px", maxWidth: 600 }}>
+              <Bar delay={5} />
+              <span style={{ fontSize: 30, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.5, marginBottom: 18 }}>
+                Indonesia is one of the fastest growing ecommerce markets in Asia.
+              </span>
+              <span style={{ fontSize: 24, color: "#44403c", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
+                How do you maintain service quality amid exponential volume increases?
+              </span>
+            </SlideUp>
+          </div>
+
+          {/* Right Side: Map showing active shipment flow */}
+          <div className="flex-1 flex items-center justify-center" style={{
+            opacity: interpolate(frame, [2400, 2430], [0, 1], {extrapolateLeft: "clamp"}),
+          }}>
+            <LogisticsMap startFrame={2400} congested={false} />
+          </div>
+        </div>
       )}
     </Interactive.Div>
   );
@@ -500,6 +553,60 @@ const IMPACT_METRICS = [
   { label: "Carbon Reduction", value: 15, suffix: "%", sub: "GLEC Certified" },
 ];
 
+const CircularProgress: React.FC<{
+  value: number;
+  maxValue: number;
+  startFrame: number;
+  delay: number;
+  duration: number;
+  children: React.ReactNode;
+}> = ({ value, maxValue, startFrame, delay, duration, children }) => {
+  const frame = useCurrentFrame();
+  const t = Math.max(0, frame - startFrame - delay);
+  const animatedVal = interpolate(t, [0, duration], [0, value], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1),
+  });
+
+  const r = 45;
+  const circ = 2 * Math.PI * r;
+  const pct = animatedVal / maxValue;
+  const strokeDashoffset = circ * (1 - pct);
+
+  return (
+    <div style={{ position: "relative", width: 110, height: 110, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <svg style={{ width: "100%", height: "100%", transform: "rotate(-90deg)", overflow: "visible" }}>
+        <circle
+          cx="55"
+          cy="55"
+          r={r}
+          stroke="#f5f5f4"
+          strokeWidth="8"
+          fill="transparent"
+        />
+        <circle
+          cx="55"
+          cy="55"
+          r={r}
+          stroke="#059669"
+          strokeWidth="8"
+          fill="transparent"
+          strokeDasharray={circ}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          style={{
+            filter: "drop-shadow(0px 0px 4px rgba(5,150,105,0.25))",
+          }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const ImpactSummary: React.FC = () => {
   const base = 8130;
 
@@ -522,23 +629,24 @@ const ImpactSummary: React.FC = () => {
             delay={8 + i * 10}
             duration={20}
             className="flex flex-col items-center"
-            style={{ width: 300, padding: "36px 32px", gap: 8 }}
+            style={{ width: 300, padding: "36px 32px", gap: 6 }}
           >
-            <div style={{
-              width: 48, height: 48, borderRadius: "50%",
-              background: "rgba(5,150,105,0.08)",
-              border: "1px solid rgba(5,150,105,0.15)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <span style={{ fontSize: 22, color: "#059669" }}>✓</span>
-            </div>
-            <span style={{ fontSize: 52, fontWeight: 700, color: "#1c1917", lineHeight: 1, marginTop: 8 }}>
-              <AnimatedCounter from={0} to={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} />{m.suffix}
-            </span>
-            <span style={{ fontSize: 22, fontWeight: 600, color: "#44403c", textAlign: "center" }}>
+            <CircularProgress
+              value={m.value}
+              maxValue={100}
+              startFrame={base}
+              delay={8 + i * 10 + 6}
+              duration={30}
+            >
+              <span style={{ fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1 }}>
+                <AnimatedCounter from={0} to={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} />{m.suffix}
+              </span>
+            </CircularProgress>
+
+            <span style={{ fontSize: 22, fontWeight: 600, color: "#44403c", textAlign: "center", marginTop: 8 }}>
               {m.label}
             </span>
-            <span style={{ fontSize: 18, color: "#78716c", textAlign: "center", marginTop: 4 }}>
+            <span style={{ fontSize: 18, color: "#78716c", textAlign: "center", marginTop: 2 }}>
               {m.sub}
             </span>
           </SlideUp>
