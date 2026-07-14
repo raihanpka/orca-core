@@ -1,6 +1,7 @@
 import React from "react";
 import { useCurrentFrame, interpolate, Easing, Img, staticFile, Interactive } from "remotion";
 import { LogisticsMap } from "../components/LogisticsMap";
+import { EcommerceGrowthChart } from "../components/EcommerceGrowthChart";
 import { Terminal, Cpu, Lightbulb, Compass, Palette, Clock, Route, Leaf } from "lucide-react";
 
 /* ================================================================
@@ -631,11 +632,11 @@ const ProblemScenes: React.FC = () => {
             </SlideUp>
           </div>
 
-          {/* Right Side: Map showing active shipment flow */}
+          {/* Right Side: Animated growth chart instead of map */}
           <div className="flex-1 flex items-center justify-center" style={{
             opacity: interpolate(frame, [2400, 2430], [0, 1], {extrapolateLeft: "clamp"}),
           }}>
-            <LogisticsMap startFrame={2400} congested={false} />
+            <EcommerceGrowthChart startFrame={2400} />
           </div>
         </div>
       )}
