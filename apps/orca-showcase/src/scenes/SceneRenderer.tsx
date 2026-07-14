@@ -208,8 +208,8 @@ const TextRotator: React.FC<{
   return (
     <span
       style={{
-        fontSize: 24, fontWeight: 600, color: "#059669",
-        letterSpacing: "0.12em", textTransform: "uppercase",
+        fontSize: 15, fontWeight: 500, color: "#44403c",
+        letterSpacing: "0.04em",
         opacity: interpolate(
           cycleT, [0, 10, interval - 12, interval], [0, 1, 1, 0],
           { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) },
@@ -508,8 +508,8 @@ const TeamShowcase: React.FC = () => {
                   <m.icon size={22} color="#059669" />
                 </div>
                 <div>
-                  <span style={{ fontSize: 22, fontWeight: 600, color: "#1c1917", display: "block" }}>{m.name}</span>
-                  <span style={{ fontSize: 18, fontWeight: 500, color: "#292524" }}>{m.role}</span>
+                  <span style={{ fontSize: 24, fontWeight: 600, color: "#1c1917", display: "block" }}>{m.name}</span>
+                  <span style={{ fontSize: 20, fontWeight: 500, color: "#292524" }}>{m.role}</span>
                 </div>
               </div>
             );
@@ -536,36 +536,36 @@ const ProblemScenes: React.FC = () => {
           {/* Left Side: Stats/Text Card */}
           <div className="flex flex-col items-center justify-center flex-1">
             {frame < 1200 && (
-              <SlideUp startFrame={base} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
+              <SlideUp startFrame={base} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "52px 60px", minWidth: 500 }}>
                 <Bar delay={5} />
-                <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 18 }}>
+                <span style={{ fontSize: 18, fontWeight: 600, color: "#78716c", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12 }}>
                   Indonesia Logistics Cost
                 </span>
                 <span style={{
-                  fontSize: 80, fontWeight: 700, color: "#dc2626", lineHeight: 1, letterSpacing: "0.02em", marginBottom: 16,
+                  fontSize: 80, fontWeight: 800, color: "#dc2626", lineHeight: 1, letterSpacing: "-0.03em", marginBottom: 16,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 4
                 }}>
                   <RollingCounter value="14.3" startFrame={base} delay={10} duration={32} fontSize={80} />
                   <span>% of GDP</span>
                 </span>
-                <span style={{ fontSize: 24, fontWeight: 600, color: "#44403c", letterSpacing: "0.04em" }}>
+                <span style={{ fontSize: 22, fontWeight: 600, color: "#44403c", letterSpacing: "-0.01em", marginBottom: 24 }}>
                   One of the highest in Southeast Asia
                 </span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", marginTop: 24, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>
-                  Source: Kementerian Perekonomian RI · July 2026
+                <span style={{ fontSize: 14, fontWeight: 500, color: "#a8a29e", letterSpacing: "0.02em", textAlign: "center" }}>
+                  Kementerian Perekonomian RI, 2026
                 </span>
               </SlideUp>
             )}
             {frame >= 1200 && frame < 1450 && (
-              <SlideUp startFrame={1200} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-                <span style={{ fontSize: 28, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
+              <SlideUp startFrame={1200} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "52px 56px", minWidth: 500 }}>
+                <span style={{ fontSize: 30, fontWeight: 700, color: "#1c1917", textAlign: "center", lineHeight: 1.25, letterSpacing: "-0.02em", maxWidth: 440 }}>
                   This creates major challenges and increases costs for consumers.
                 </span>
               </SlideUp>
             )}
             {frame >= 1450 && (
-              <SlideUp startFrame={1450} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "48px 60px", minWidth: 500 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: "#ef4444", textAlign: "center", lineHeight: 1.6, maxWidth: 440 }}>
+              <SlideUp startFrame={1450} delay={0} duration={18} className="flex flex-col items-center" style={{ padding: "52px 56px", minWidth: 500 }}>
+                <span style={{ fontSize: 30, fontWeight: 700, color: "#dc2626", textAlign: "center", lineHeight: 1.25, letterSpacing: "-0.02em", maxWidth: 440 }}>
                   Delays and inefficiencies everywhere. Something has to change.
                 </span>
               </SlideUp>
@@ -582,63 +582,154 @@ const ProblemScenes: React.FC = () => {
       )}
 
       {frame >= 1650 && frame < 2400 && (
-        <>
-          {frame < 2000 && (
-            <SlideUp startFrame={1650} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "36px 48px", maxWidth: 620 }}>
-              <Bar delay={5} />
-              <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20 }}>
-                World Bank LPI 2023
-              </span>
+        <div className="flex items-center justify-between w-full h-full max-w-[1720px] gap-12">
+          {/* Left: persistent card with 3 fading states */}
+          <div className="flex flex-col items-center justify-center flex-1">
+            <SlideUp startFrame={1650} delay={0} duration={22} className="flex flex-col relative" style={{ padding: "48px 52px", width: 540, minHeight: 380 }}>
+              {/* State 1: LPI rank data (1650-2010) — centered, no inline country prefix */}
               <div style={{
-                background: "rgba(5,150,105,0.06)", borderRadius: CARD_RADIUS, border: "1px solid rgba(5,150,105,0.12)", padding: "14px 40px", marginBottom: 22,
-                display: "flex", justifyContent: "center", alignItems: "center"
+                position: "absolute", inset: "48px 52px",
+                display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+                opacity: interpolate(frame, [1650, 1665, 1995, 2010], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
               }}>
-                <span style={{
-                  fontSize: 36, fontWeight: 700, color: "#059669", letterSpacing: "0.04em",
-                  display: "flex", alignItems: "center", gap: 8
-                }}>
-                  <span>Indonesia: Rank</span>
-                  <RollingCounter value={61} startFrame={1650} delay={12} duration={30} fontSize={36} />
+                <Bar delay={5} />
+                <span style={{ fontSize: 16, fontWeight: 600, color: "#78716c", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12, textAlign: "center" }}>
+                  World Bank LPI 2023
+                </span>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
+                  <RollingCounter value={61} startFrame={1650} delay={12} duration={30} fontSize={80} />
+                  <span style={{ fontSize: 28, fontWeight: 500, color: "#a8a29e" }}>/160</span>
+                </div>
+                <span style={{ fontSize: 20, fontWeight: 500, color: "#44403c", lineHeight: 1.3, marginBottom: 24, textAlign: "center" }}>
+                  Global Logistics Performance Index
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: "#a8a29e", letterSpacing: "0.02em", textAlign: "center" }}>
+                  World Bank LPI Report, 2023
                 </span>
               </div>
+
+              {/* State 2: This is the problem (2010-2130) */}
+              <div style={{
+                position: "absolute", inset: "48px 52px",
+                display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+                opacity: interpolate(frame, [2010, 2025, 2115, 2130], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+              }}>
+                <span style={{ fontSize: 34, fontWeight: 700, color: "#1c1917", lineHeight: 1.2, letterSpacing: "-0.02em", textAlign: "center" }}>
+                  This is the problem we set out to solve.
+                </span>
+              </div>
+
+              {/* State 3: Service quality question (2130-2400) */}
+              <div style={{
+                position: "absolute", inset: "48px 52px",
+                display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+                opacity: interpolate(frame, [2130, 2145], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+              }}>
+                <span style={{ fontSize: 32, fontWeight: 700, color: "#059669", lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 16, textAlign: "center" }}>
+                  How do you maintain service quality?
+                </span>
+                <span style={{ fontSize: 22, fontWeight: 500, color: "#44403c", lineHeight: 1.35, textAlign: "center" }}>
+                  Amid exponential growth in volume.
+                </span>
+              </div>
+            </SlideUp>
+          </div>
+
+          {/* Right: rotating visualization */}
+          <div className="flex-1 flex items-center justify-center relative" style={{ minHeight: 380 }}>
+            {/* State 1: LPI bar chart (1650-1770) */}
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              opacity: interpolate(frame, [1650, 1665, 1755, 1770], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+            }}>
               <AnimatedBarChart data={LPI_DATA} startFrame={1650} delay={12} stagger={5} duration={26} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", marginTop: 14, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>
-                Source: World Bank LPI Report · July 2023
-              </span>
-            </SlideUp>
-          )}
-          {frame >= 2000 && (
-            <SlideUp startFrame={2000} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "44px 52px", maxWidth: 540 }}>
-              <span style={{ fontSize: 28, fontWeight: 600, color: "#1c1917", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
-                This is the problem we set out to solve.
-              </span>
-            </SlideUp>
-          )}
-        </>
+            </div>
+
+            {/* State 2: SLA impact cards (1770-2010) */}
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column", gap: 16, justifyContent: "center",
+              opacity: interpolate(frame, [1770, 1785, 1995, 2010], [0, 1, 1, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+            }}>
+              <div style={{
+                background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.12)",
+                borderRadius: 12, padding: "24px 28px",
+                opacity: interpolate(frame, [1770, 1790], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+                translate: `0px ${interpolate(frame, [1770, 1790], [12, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})}px`,
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#78716c", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Financial Penalties</span>
+                <span style={{ fontSize: 48, fontWeight: 800, color: "#dc2626", letterSpacing: "-0.03em", lineHeight: 1, display: "block" }}>Up to 5%</span>
+                <span style={{ fontSize: 18, fontWeight: 500, color: "#44403c", display: "block", marginTop: 8 }}>revenue loss per SLA breach</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#a8a29e", display: "block", marginTop: 12, letterSpacing: "0.02em" }}>Corporate SLA Benchmarks, 2025</span>
+              </div>
+              <div style={{
+                background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.07)",
+                borderRadius: 12, padding: "24px 28px",
+                opacity: interpolate(frame, [1800, 1820], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+                translate: `0px ${interpolate(frame, [1800, 1820], [12, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})}px`,
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#78716c", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Customer Churn</span>
+                <span style={{ fontSize: 48, fontWeight: 800, color: "#1c1917", letterSpacing: "-0.03em", lineHeight: 1, display: "block" }}>84% higher</span>
+                <span style={{ fontSize: 18, fontWeight: 500, color: "#44403c", display: "block", marginTop: 8 }}>B2B client defection after delays</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#a8a29e", display: "block", marginTop: 12, letterSpacing: "0.02em" }}>Logistics Customer Experience Report, 2025</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {frame >= 2400 && frame < 3000 && (
-        <div className="flex items-center justify-between w-full h-full max-w-[1720px] gap-12">
-          {/* Left Side: Text Box */}
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <SlideUp startFrame={2400} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "44px 56px", maxWidth: 600 }}>
-              <Bar delay={5} />
-              <span style={{ fontSize: 30, fontWeight: 700, color: "#1c1917", textAlign: "center", lineHeight: 1.5, marginBottom: 18 }}>
-                Indonesia is one of the fastest growing ecommerce markets in Asia.
-              </span>
-              <span style={{ fontSize: 24, fontWeight: 600, color: "#292524", textAlign: "center", lineHeight: 1.5, maxWidth: 480 }}>
-                How do you maintain service quality amid exponential volume increases?
-              </span>
-            </SlideUp>
-          </div>
-
-          {/* Right Side: Animated growth chart instead of map */}
-          <div className="flex-1 flex items-center justify-center" style={{
-            opacity: interpolate(frame, [2400, 2430], [0, 1], {extrapolateLeft: "clamp"}),
-          }}>
-            <EcommerceGrowthChart startFrame={2400} />
-          </div>
-        </div>
+        <>
+          {frame < 2640 && (
+            <div className="flex items-center justify-between w-full h-full max-w-[1720px] gap-12">
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <SlideUp startFrame={2400} delay={0} duration={22} className="flex flex-col" style={{ padding: "48px 52px", maxWidth: 580 }}>
+                  <Bar delay={5} />
+                  <span style={{ fontSize: 18, fontWeight: 600, color: "#78716c", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 16 }}>
+                    Market Context
+                  </span>
+                  <span style={{ fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1.25, letterSpacing: "-0.02em", marginBottom: 16 }}>
+                    Indonesia is one of the fastest growing ecommerce markets in Asia.
+                  </span>
+                  <span style={{ fontSize: 20, fontWeight: 500, color: "#44403c", lineHeight: 1.4, marginBottom: 24 }}>
+                    How do you maintain service quality amid exponential volume increases?
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "#a8a29e", letterSpacing: "0.02em" }}>
+                    RedSeer Southeast Asia E-Commerce Report, 2026
+                  </span>
+                </SlideUp>
+              </div>
+              <div className="flex-1 flex items-center justify-center" style={{
+                opacity: interpolate(frame, [2400, 2430], [0, 1], {extrapolateLeft: "clamp"}),
+              }}>
+                <EcommerceGrowthChart startFrame={2400} />
+              </div>
+            </div>
+          )}
+          {frame >= 2640 && (
+            <div className="flex flex-col items-center justify-center w-full h-full">
+              <SlideUp startFrame={2640} delay={0} duration={22} className="flex flex-col items-center" style={{ padding: "48px 64px", maxWidth: 680 }}>
+                <Img src={staticFile("logo.png")} style={{ height: 52, width: "auto", marginBottom: 28 }} alt="ORCA" />
+                <span style={{ fontSize: 36, fontWeight: 700, color: "#1c1917", textAlign: "center", lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 32 }}>
+                  This is where ORCA comes in.
+                </span>
+                <div style={{ display: "flex", gap: 16 }}>
+                  {["Predictive", "Optimized", "Sustainable"].map((tag, i) => (
+                    <div key={tag} style={{
+                      opacity: interpolate(Math.max(0, frame - 2640 - i * 18), [0, 16], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"}),
+                      translate: `0px ${interpolate(Math.max(0, frame - 2640 - i * 18), [0, 16], [10, 0], {extrapolateLeft: "clamp", extrapolateRight: "clamp"})}px`,
+                      background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)",
+                      borderRadius: 8, padding: "12px 24px",
+                    }}>
+                      <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "-0.01em" }}>{tag}</span>
+                    </div>
+                  ))}
+                </div>
+              </SlideUp>
+            </div>
+          )}
+        </>
       )}
     </Interactive.Div>
   );
@@ -661,8 +752,7 @@ const OrcaIntro: React.FC = () => {
       <AnimatedBg />
 
       <SlideUp startFrame={base} delay={0} duration={20} className="flex flex-col items-center" style={{ padding: "16px 40px", marginBottom: 32 }}>
-        <Img src={staticFile("logo.png")} style={{ height: 60, width: "auto", marginBottom: 12 }} alt="ORCA" />
-        <TextRotator startFrame={base} delay={26} interval={48} />
+        <Img src={staticFile("logo.png")} style={{ height: 60, width: "auto" }} alt="ORCA" />
       </SlideUp>
 
       <div className="flex items-stretch" style={{ gap: 24 }}>
@@ -672,11 +762,12 @@ const OrcaIntro: React.FC = () => {
             startFrame={p.startFrame}
             delay={0}
             duration={18}
-            className="flex flex-col items-center"
+            className="flex flex-col items-center justify-center"
             style={{
               width: 290,
-              padding: "36px 32px",
-              gap: 12,
+              height: 180,
+              padding: "28px 24px",
+              gap: 16,
             }}
           >
             <div style={{
@@ -687,8 +778,7 @@ const OrcaIntro: React.FC = () => {
             }}>
               <p.icon size={24} color="#059669" />
             </div>
-            <span style={{ fontSize: 24, fontWeight: 700, color: "#1c1917", textAlign: "center" }}>{p.title}</span>
-            <span style={{ fontSize: 20, color: "#44403c", fontWeight: 600 }}>{p.sub}</span>
+            <span style={{ fontSize: 24, fontWeight: 700, color: "#1c1917", textAlign: "center", lineHeight: 1.2, width: "100%" }}>{p.title}</span>
           </SlideUp>
         ))}
       </div>
@@ -707,43 +797,57 @@ const METRICS = [
 
 const MetricCards: React.FC = () => {
   const base = 3600;
+  const frame = useCurrentFrame();
+
+  // Caption sync — highlight the card matching the current subtitle
+  // 3600-3720: "Targeting 20 to 30 percent fewer delays"
+  // 3720-3840: "5 to 20 percent lower costs"
+  // 3840-3960: "10 to 15 percent carbon reduction"
+  // 3960+: all equal
+  const activeIdx = frame < 3720 ? 0 : frame < 3840 ? 1 : frame < 3960 ? 2 : -1;
 
   return (
     <Interactive.Div name="Metrics" className="absolute inset-0 bg-stone-50 flex items-center justify-center" style={{ padding: 80 }}>
       <AnimatedBg />
-      <div className="flex items-stretch" style={{ gap: 28 }}>
-        {METRICS.map((m, i) => (
-          <SlideUp
-            key={m.title}
-            startFrame={base}
-            delay={8 + i * 12}
-            duration={20}
-            className="flex flex-col items-center"
-            style={{ width: 320, padding: "40px 36px", gap: 6 }}
-          >
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#1c1917", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
-              {m.title}
-            </span>
-            <span style={{
-              fontSize: 64, fontWeight: 800, color: "#059669", lineHeight: 1, marginBottom: 10,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%"
-            }}>
-              <RollingCounter value={m.low} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={64} />
-              <span>to</span>
-              <RollingCounter value={m.high} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={64} />
-              <span>{m.suffix}</span>
-            </span>
-            <span style={{ fontSize: 20, fontWeight: 600, color: "#44403c", textAlign: "center" }}>
-              {m.sub}
-            </span>
-          </SlideUp>
-        ))}
-      </div>
-
-      {/* Centered Source and Date Footer */}
-      <div style={{ position: "absolute", bottom: 45, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          Source: ORCA Pilot Phase & Simulation Data · July 2026
+      <div className="flex flex-col items-center" style={{ gap: 20 }}>
+        <div className="flex items-stretch" style={{ gap: 28 }}>
+          {METRICS.map((m, i) => {
+            const isActive = activeIdx === -1 || activeIdx === i;
+            return (
+              <div key={m.title} style={{
+                opacity: isActive ? 1 : 0.4,
+                transform: `scale(${isActive ? 1 : 0.96})`,
+                transformOrigin: "center center",
+              }}>
+                <SlideUp
+                  startFrame={base}
+                  delay={8 + i * 12}
+                  duration={20}
+                  className="flex flex-col items-center justify-between"
+                  style={{ width: 320, height: 240, padding: "36px 28px", gap: 0 }}
+                >
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "#1c1917", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 12, display: "block", textAlign: "center" }}>
+                    {m.title}
+                  </span>
+                  <span style={{
+                    fontSize: 54, fontWeight: 800, color: "#059669", lineHeight: 1, marginBottom: 12,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%"
+                  }}>
+                    <RollingCounter value={m.low} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={54} />
+                    <span style={{ fontSize: 32, fontWeight: 600, color: "#a8a29e" }}>-</span>
+                    <RollingCounter value={m.high} startFrame={base} delay={8 + i * 12 + 5} duration={28} fontSize={54} />
+                    <span>{m.suffix}</span>
+                  </span>
+                  <span style={{ fontSize: 18, fontWeight: 500, color: "#44403c", textAlign: "center", letterSpacing: "-0.01em", lineHeight: 1.2, width: "100%", display: "block" }}>
+                    {m.sub}
+                  </span>
+                </SlideUp>
+              </div>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 14, fontWeight: 500, color: "#a8a29e", letterSpacing: "0.02em" }}>
+          ORCA Pilot Phase, Simulation Data, 2026
         </span>
       </div>
     </Interactive.Div>
@@ -835,53 +939,53 @@ const ImpactSummary: React.FC = () => {
     <Interactive.Div name="Impact" className="absolute inset-0 bg-stone-50 flex flex-col items-center justify-center" style={{ padding: 80 }}>
       <AnimatedBg />
 
-      <SlideUp startFrame={base} delay={0} duration={20} className="flex flex-col items-center" style={{ padding: "16px 40px", marginBottom: 28 }}>
-        <span style={{ fontSize: 16, fontWeight: 600, color: "#78716c", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+      <SlideUp startFrame={base} delay={0} duration={20} className="flex flex-col items-center" style={{ padding: "16px 40px", marginBottom: 24 }}>
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#78716c", letterSpacing: "0.07em", textTransform: "uppercase" }}>
           Impact Summary
         </span>
         <div style={{ width: 40, height: 2, background: "rgba(5,150,105,0.3)", borderRadius: 1, marginTop: 12 }} />
       </SlideUp>
 
-      <div className="flex items-stretch" style={{ gap: 28 }}>
-        {IMPACT_METRICS.map((m, i) => (
-          <SlideUp
-            key={m.label}
-            startFrame={base}
-            delay={8 + i * 10}
-            duration={20}
-            className="flex flex-col items-center"
-            style={{ width: 300, padding: "36px 32px", gap: 6 }}
-          >
-            <CircularProgress
-              value={m.value}
-              maxValue={100}
+      <div className="flex flex-col items-center" style={{ gap: 24 }}>
+        <div className="flex items-stretch" style={{ gap: 28 }}>
+          {IMPACT_METRICS.map((m, i) => (
+            <SlideUp
+              key={m.label}
               startFrame={base}
-              delay={8 + i * 10 + 6}
-              duration={30}
+              delay={8 + i * 10}
+              duration={20}
+              className="flex flex-col items-center justify-between"
+              style={{ width: 300, height: 280, padding: "36px 28px", gap: 0 }}
             >
-              <span style={{
-                fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1,
-                display: "flex", alignItems: "center", justifyContent: "center"
-              }}>
-                <RollingCounter value={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} fontSize={30} />
-                <span>{m.suffix}</span>
-              </span>
-            </CircularProgress>
+              <CircularProgress
+                value={m.value}
+                maxValue={100}
+                startFrame={base}
+                delay={8 + i * 10 + 6}
+                duration={30}
+              >
+                <span style={{
+                  fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1,
+                  display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                  <RollingCounter value={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} fontSize={30} />
+                  <span>{m.suffix}</span>
+                </span>
+              </CircularProgress>
 
-            <span style={{ fontSize: 22, fontWeight: 600, color: "#44403c", textAlign: "center", marginTop: 8 }}>
-              {m.label}
-            </span>
-            <span style={{ fontSize: 18, color: "#78716c", textAlign: "center", marginTop: 2 }}>
-              {m.sub}
-            </span>
-          </SlideUp>
-        ))}
-      </div>
-
-      {/* Centered Source and Date Footer */}
-      <div style={{ position: "absolute", bottom: 45, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          Source: ORCA Operational Performance Metrics · July 2026
+              <div className="flex flex-col items-center" style={{ gap: 4, width: "100%" }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: "#1c1917", textAlign: "center", letterSpacing: "-0.01em" }}>
+                  {m.label}
+                </span>
+                <span style={{ fontSize: 18, color: "#44403c", fontWeight: 500, textAlign: "center", lineHeight: 1.25 }}>
+                  {m.sub}
+                </span>
+              </div>
+            </SlideUp>
+          ))}
+        </div>
+        <span style={{ fontSize: 14, fontWeight: 500, color: "#a8a29e", letterSpacing: "0.02em" }}>
+          ORCA Operational Performance Metrics, 2026
         </span>
       </div>
     </Interactive.Div>
@@ -910,8 +1014,8 @@ const ClosingCredits: React.FC = () => {
           <Img src={staticFile("kemenko_logo.png")} style={{ height: 56, width: "auto", opacity: 0.85 }} alt="Kemenko" />
         </div>
 
-        <span style={{ fontSize: 22, fontWeight: 700, color: "#1c1917", marginBottom: 20 }}>
-          Manusia yang tak pakai AI akan kalah
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#78716c", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 20 }}>
+          Team Manusia yang tak pakai AI akan kalah
         </span>
 
         <div className="flex flex-col items-center" style={{ gap: 6, marginBottom: 18 }}>

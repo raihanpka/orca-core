@@ -92,8 +92,8 @@ const SUBTITLES: Subtitle[] = [
 
   // Scene 17: Closing (8280-8580)
   { startFrame: 8280, endFrame: 8380, text: "Built for AI Open Innovation 2026." },
-  { startFrame: 8380, endFrame: 8480, text: "Presented by Team Manusia." },
-  { startFrame: 8480, endFrame: 8580, text: "Those who don't use AI will be left behind." },
+  { startFrame: 8380, endFrame: 8480, text: "Presented by Team Manusia yang tak pakai AI akan kalah." },
+  { startFrame: 8480, endFrame: 8580, text: "Thank you for watching." },
 ];
 
 export const Captions: React.FC = () => {

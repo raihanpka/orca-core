@@ -17,10 +17,10 @@ type Route = {
 // Hub coordinates scaled for 260x82 viewBox
 const HUBS: Record<string, Point & { label: string }> = {
   medan: { x: 28, y: 25, label: "Medan" },
-  jakarta: { x: 83, y: 66, label: "Jakarta" },
-  surabaya: { x: 115, y: 68, label: "Surabaya" },
-  balikpapan: { x: 127, y: 35, label: "Balikpapan" },
-  makassar: { x: 150, y: 55, label: "Makassar" },
+  jakarta: { x: 75, y: 63, label: "Jakarta" },
+  surabaya: { x: 100, y: 68, label: "Surabaya" },
+  balikpapan: { x: 118, y: 34, label: "Balikpapan" },
+  makassar: { x: 138, y: 50, label: "Makassar" },
   jayapura: { x: 252, y: 35, label: "Jayapura" },
 };
 
@@ -171,7 +171,10 @@ export const LogisticsMap: React.FC<LogisticsMapProps> = ({
         {/* ================= ROUTES (Animated curved lines) ================= */}
         <g id="routes">
           {ROUTES.map((route) => {
-            const isRouteRed = congested && route.isCongested;
+            const isRouteRed = congested && (
+              route.id === "sub-upg" ? true :
+              (route.id === "upg-bpn" || route.id === "upg-djj") ? (frame >= 1480) : false
+            );
             const strokeColor = isRouteRed ? "#ef4444" : "#10b981";
             const strokeWidth = isRouteRed ? 0.9 : 0.6;
             const pathData = `M ${route.p0.x},${route.p0.y} Q ${route.p1.x},${route.p1.y} ${route.p2.x},${route.p2.y}`;
@@ -197,7 +200,10 @@ export const LogisticsMap: React.FC<LogisticsMapProps> = ({
         {/* ================= PARTICLES (Shipments flowing along curves) ================= */}
         <g id="particles">
           {ROUTES.map((route) => {
-            const isRouteRed = congested && route.isCongested;
+            const isRouteRed = congested && (
+              route.id === "sub-upg" ? true :
+              (route.id === "upg-bpn" || route.id === "upg-djj") ? (frame >= 1480) : false
+            );
             const particleOffsets = [0, 45];
             const duration = 90;
 
@@ -235,7 +241,10 @@ export const LogisticsMap: React.FC<LogisticsMapProps> = ({
         <g id="hubs">
           {Object.keys(HUBS).map((key) => {
             const hub = HUBS[key];
-            const isRedHub = congested && key === "makassar";
+            const isRedHub = congested && (
+              key === "makassar" ? true :
+              (key === "balikpapan" || key === "jayapura") ? (frame >= 1480) : false
+            );
             const hubColor = isRedHub ? "#ef4444" : "#059669";
             
             const pulseScale = interpolate(
@@ -289,7 +298,7 @@ export const LogisticsMap: React.FC<LogisticsMapProps> = ({
                   {hub.label}
                 </text>
 
-                {/* Warning icon for Makassar congestion */}
+                {/* Warning icon for red hubs */}
                 {isRedHub && (
                   <g transform={`translate(${hub.x - 2.5}, ${hub.y + 2.5}) scale(0.3)`}>
                     <rect
