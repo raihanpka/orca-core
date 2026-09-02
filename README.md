@@ -24,7 +24,7 @@ orca/
 ├── Makefile
 ├── apps/
 │   ├── orca-ai/              # Python: FastAPI ML inference, NSGA-II optimizer, carbon calc, subscriber
-│   └── orca-web/             # Next.js 16.2.6: Live dashboard (App Router, shadcn, Zustand, Recharts, SWR)
+│   └── orca-showcase/        # Remotion showcase video (competition presentation)
 ├── data/
 │   ├── raw/olist/            # Downloaded Olist CSVs (gitignored)
 │   └── processed/            # Feature parquet files and OSMnx graph artifacts
@@ -34,6 +34,28 @@ orca/
 │   └── init-db/01_schema.sql # TimescaleDB schema (auto-mounted on first container start)
 └── mlruns/                   # MLflow artifact storage
 ```
+
+The Next.js dashboard lives in the sibling repository `../orca-frontend` (moved from `apps/orca-web`).
+
+## Target Architecture
+
+The core moves from the current Python monolith to a two-service modular
+monolith in this same repo, coupled only by Redis Streams (no gRPC, no proto):
+
+```
+orca-core/
+├── services/
+│   ├── gateway/              # Go: REST API, auth, ingest adapters, fast tier, scenario engine, persist, broadcast
+│   └── ai/                   # Python: LightGBM inference, NSGA-II optimizer, read-only agent
+├── apps/orca-ai/             # current Python monolith, sunset as the services land
+└── infra/                    # docker-compose, schema, seed
+```
+
+- **Event spine:** 6 canonical shipment events in, prediction, alert, and result events out, each carrying `schema_version`, `event_id`, and `correlation_id`.
+- **Two-tier intelligence:** the gateway scores with fast rule-based watchers, the AI layer upgrades scores asynchronously, so the dashboard never goes empty if the AI service restarts mid-demo.
+- **Async optimizer:** `POST /optimize/jobs` returns a job id, results arrive on the results stream and are polled by the dashboard.
+
+Decisions and the partner data checklist live in `../docs/ideas/`.
 
 ## Technology Stack
 
@@ -72,14 +94,14 @@ pnpm --version        # >= 10
 ## Installation
 
 ```bash
-git clone https://github.com/raihanpka/orca.git
-cd orca
+git clone https://github.com/raihanpka/orca-core.git
+cd orca-core
 
 # Install all dependencies
 make install
 ```
 
-This will install Python dependencies with `uv` in `apps/orca-ai` and pnpm packages in `apps/orca-web`.
+This installs Python dependencies with `uv` in `apps/orca-ai`. The Next.js dashboard installs separately in the sibling `orca-frontend` repository.
 
 ## Configuration
 
@@ -115,7 +137,7 @@ All other variables (database URLs, Redis, MLflow) are pre-filled to match the D
 ### Full Stack via Docker Compose
 
 ```bash
-# Build and start all services (PostgreSQL, Redis, MLflow, orca-ai, orca-worker, orca-web)
+# Build and start all services (PostgreSQL, Redis, MLflow, orca-ai, orca-worker)
 make up
 
 # Seed the database
@@ -129,7 +151,6 @@ make logs
 
 ```bash
 make dev-ai       # FastAPI on http://localhost:8010
-make dev-web      # Next.js on http://localhost:3000
 ```
 
 ### Run a Simulation
@@ -143,15 +164,14 @@ cd apps/orca-ai && uv run python ../../scripts/ingest/stream_data.py
 
 | Command | Description |
 |---|---|
-| `make install` | Install dependencies for backend and frontend |
+| `make install` | Install backend dependencies with uv |
 | `make build` | Build Docker images for all services |
 | `make up` | Start all services via Docker Compose |
 | `make down` | Stop infrastructure services |
 | `make restart` | Restart Docker Compose services |
-| `make logs` | View logs for orca-ai and orca-web |
+| `make logs` | View logs for orca-ai |
 | `make dev-ai` | Run FastAPI server locally via uv |
-| `make dev-web` | Run Next.js server locally via pnpm |
-| `make test` | Run tests for backend and frontend |
+| `make test` | Run backend tests with pytest |
 | `make seed-db` | Seed PostgreSQL with sample shipments |
 | `make clean` | Remove build artifacts and caches |
 
