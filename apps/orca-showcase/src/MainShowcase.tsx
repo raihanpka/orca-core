@@ -56,8 +56,8 @@ export const MainShowcase: React.FC = () => {
   const audioVolume = (f: number) => {
     const fadeIn = Math.min(f / 60, 1);
     const fadeOutStart = 8580 - 60;
-    const base = 0.08;
-    if (f >= 4800 && f < 8104) return Math.min(fadeIn, 1) * 0.03;
+    const base = 0.055; // Reduced from 0.08
+    if (f >= 4800 && f < 8104) return Math.min(fadeIn, 1) * 0.015; // Reduced from 0.03
     if (f > fadeOutStart) {
       const fadeOut = Math.max(0, (8580 - f) / 60);
       return Math.min(fadeIn, fadeOut) * base;

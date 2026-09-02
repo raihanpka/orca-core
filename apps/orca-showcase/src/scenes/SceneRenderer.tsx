@@ -482,7 +482,7 @@ const TeamShowcase: React.FC = () => {
       <div className="flex flex-col items-center" style={{ maxWidth: 720, width: "100%" }}>
         <SlideUp startFrame={base} delay={5} duration={22} className="flex flex-col" style={{ width: "100%", padding: CARD_PAD, gap: 10 }}>
           <span style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
-            Team
+            Our Team Members
           </span>
           {TEAM.map((m, i) => {
             const appearFrame = i < 3 ? 610 + i * 15 : 690 + (i - 3) * 15;
@@ -747,13 +747,36 @@ const PILLARS = [
 
 const OrcaIntro: React.FC = () => {
   const base = 3000;
+  const frame = useCurrentFrame();
 
   return (
     <Interactive.Div name="OrcaIntro" className="absolute inset-0 bg-stone-50 flex flex-col items-center justify-center" style={{ padding: 80 }}>
       <AnimatedBg />
 
-      <SlideUp startFrame={base} delay={0} duration={20} className="flex flex-col items-center" style={{ padding: "16px 40px", marginBottom: 32 }}>
-        <Img src={staticFile("logo.png")} style={{ height: 60, width: "auto" }} alt="ORCA" />
+      <SlideUp startFrame={base} delay={0} duration={20} className="flex flex-col items-center" style={{ padding: "16px 40px", marginBottom: 24 }}>
+        <Img src={staticFile("logo.png")} style={{ height: 60, width: "auto", marginBottom: 16 }} alt="ORCA" />
+
+        {/* Dynamic Typography Filler for 3000-3240 */}
+        <div style={{ height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {frame >= 3000 && frame < 3120 && (
+            <span style={{
+              fontSize: 24, fontWeight: 500, color: "#44403c", letterSpacing: "-0.01em",
+              opacity: interpolate(frame, [3000, 3015, 3105, 3120], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+              transform: `translateY(${interpolate(frame, [3000, 3015, 3105, 3120], [5, 0, 0, -5], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`
+            }}>
+              Predicts SLA failures before they happen.
+            </span>
+          )}
+          {frame >= 3120 && frame < 3240 && (
+            <span style={{
+              fontSize: 24, fontWeight: 500, color: "#44403c", letterSpacing: "-0.01em",
+              opacity: interpolate(frame, [3120, 3135, 3225, 3240], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+              transform: `translateY(${interpolate(frame, [3120, 3135, 3225, 3240], [5, 0, 0, -5], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`
+            }}>
+              Optimizes routes in real time.
+            </span>
+          )}
+        </div>
       </SlideUp>
 
       <div className="flex items-stretch" style={{ gap: 24 }}>
@@ -769,15 +792,19 @@ const OrcaIntro: React.FC = () => {
               height: 180,
               padding: "28px 24px",
               gap: 16,
+              background: "linear-gradient(145deg, #ffffff 0%, #f0fdf4 100%)",
+              border: "1px solid rgba(5,150,105,0.2)",
+              boxShadow: "0 12px 32px -8px rgba(5,150,105,0.12)",
             }}
           >
             <div style={{
-              width: 52, height: 52,
-              borderRadius: "50%", background: "rgba(5,150,105,0.06)",
-              border: "1px solid rgba(5,150,105,0.12)",
+              width: 56, height: 56,
+              borderRadius: "50%", background: "rgba(5,150,105,0.1)",
+              border: "1px solid rgba(5,150,105,0.2)",
               display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(5,150,105,0.1)",
             }}>
-              <p.icon size={24} color="#059669" />
+              <p.icon size={26} color="#059669" />
             </div>
             <span style={{ fontSize: 24, fontWeight: 700, color: "#1c1917", textAlign: "center", lineHeight: 1.2, width: "100%" }}>{p.title}</span>
           </SlideUp>
@@ -879,59 +906,6 @@ const IMPACT_METRICS = [
   { label: "Carbon Reduction", value: 15, suffix: "%", sub: "GLEC Certified" },
 ];
 
-const CircularProgress: React.FC<{
-  value: number;
-  maxValue: number;
-  startFrame: number;
-  delay: number;
-  duration: number;
-  children: React.ReactNode;
-}> = ({ value, maxValue, startFrame, delay, duration, children }) => {
-  const frame = useCurrentFrame();
-  const t = Math.max(0, frame - startFrame - delay);
-  const animatedVal = interpolate(t, [0, duration], [0, value], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
-
-  const r = 45;
-  const circ = 2 * Math.PI * r;
-  const pct = animatedVal / maxValue;
-  const strokeDashoffset = circ * (1 - pct);
-
-  return (
-    <div style={{ position: "relative", width: 110, height: 110, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <svg style={{ width: "100%", height: "100%", transform: "rotate(-90deg)", overflow: "visible" }}>
-        <circle
-          cx="55"
-          cy="55"
-          r={r}
-          stroke="#f5f5f4"
-          strokeWidth="8"
-          fill="transparent"
-        />
-        <circle
-          cx="55"
-          cy="55"
-          r={r}
-          stroke="#059669"
-          strokeWidth="8"
-          fill="transparent"
-          strokeDasharray={circ}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          style={{
-            filter: "drop-shadow(0px 0px 4px rgba(5,150,105,0.25))",
-          }}
-        />
-      </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {children}
-      </div>
-    </div>
-  );
-};
 
 const ImpactSummary: React.FC = () => {
   const base = 8130;
@@ -958,21 +932,19 @@ const ImpactSummary: React.FC = () => {
               className="flex flex-col items-center justify-between"
               style={{ width: 300, height: 280, padding: "36px 28px", gap: 0 }}
             >
-              <CircularProgress
-                value={m.value}
-                maxValue={100}
-                startFrame={base}
-                delay={8 + i * 10 + 6}
-                duration={30}
-              >
+              <div style={{
+                marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "16px 28px", background: "rgba(5,150,105,0.06)", borderRadius: 16, border: "1px solid rgba(5,150,105,0.15)",
+                width: "100%"
+              }}>
                 <span style={{
-                  fontSize: 30, fontWeight: 700, color: "#1c1917", lineHeight: 1,
+                  fontSize: 54, fontWeight: 800, color: "#059669", lineHeight: 1, letterSpacing: "-0.03em",
                   display: "flex", alignItems: "center", justifyContent: "center"
                 }}>
-                  <RollingCounter value={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} fontSize={30} />
-                  <span>{m.suffix}</span>
+                  <RollingCounter value={m.value} startFrame={base} delay={8 + i * 10 + 6} duration={30} fontSize={54} />
+                  <span style={{ fontSize: 36, marginLeft: 4, fontWeight: 700 }}>{m.suffix}</span>
                 </span>
-              </CircularProgress>
+              </div>
 
               <div className="flex flex-col items-center" style={{ gap: 4, width: "100%" }}>
                 <span style={{ fontSize: 20, fontWeight: 700, color: "#1c1917", textAlign: "center", letterSpacing: "-0.01em" }}>
@@ -1027,7 +999,7 @@ const ClosingCredits: React.FC = () => {
 
           <div className="flex flex-col items-center" style={{ gap: 6, marginBottom: 18, width: "100%" }}>
             {TEAM.map((m, i) => (
-              <span key={m.name} style={{ 
+              <span key={m.name} style={{
                 fontSize: 20, color: "#44403c",
                 opacity: interpolate(showTeam - 20 - i * 15, [0, 20], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
               }}>{m.name} · {m.role}</span>
