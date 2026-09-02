@@ -1,3 +1,5 @@
+name: orca
+
 services:
   postgres:
     image: timescale/timescaledb:latest-pg15
@@ -102,25 +104,8 @@ services:
       redis: {condition: service_healthy}
     networks: [orca-net]
 
-  orca-web:
-    build:
-      context: .
-      dockerfile: ./apps/orca-web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8010}
-        NEXT_PUBLIC_POLL_INTERVAL_MS: ${NEXT_PUBLIC_POLL_INTERVAL_MS:-15000}
-        NEXT_PUBLIC_API_TOKEN: ${NEXT_PUBLIC_API_TOKEN:-orca-public-local-token}
-    ports: ["3010:3010"]
-    environment:
-      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8010}
-      NEXT_PUBLIC_POLL_INTERVAL_MS: ${NEXT_PUBLIC_POLL_INTERVAL_MS:-15000}
-      NEXT_PUBLIC_API_TOKEN: ${NEXT_PUBLIC_API_TOKEN:-orca-public-local-token}
-    depends_on:
-      orca-ai: {condition: service_healthy}
-    networks: [orca-net]
-
   orca-migrate:
-    image: orca-ai-open-innovation-orca-worker
+    image: orca-orca-worker
     profiles: ["setup"]
     command: uv run python scripts/ingest/seed_db.py
     environment:
